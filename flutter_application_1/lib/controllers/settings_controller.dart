@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/database_helper.dart';
 
 class SettingsController extends ChangeNotifier {
-  // Controller này có thể đơn giản vì màn hình cài đặt chủ yếu là điều hướng
-  // và hiển thị các tùy chọn tĩnh.
-  // Tuy nhiên, nếu có các cài đặt động (ví dụ: bật/tắt thông báo),
-  // logic đó sẽ nằm ở đây.
+  final DatabaseHelper _dbHelper;
 
-  SettingsController();
+  SettingsController(this._dbHelper);
 
-  // Ví dụ: có thể có một phương thức để lấy trạng thái thông báo từ Model/Service
-  // bool _isNotificationsEnabled = false;
-  // bool get isNotificationsEnabled => _isNotificationsEnabled;
-  // Future<void> toggleNotifications(bool value) async {
-  //   // Cập nhật Model/Service
-  //   _isNotificationsEnabled = value;
-  //   notifyListeners();
-  // }
+  bool _notificationsEnabled = true;
+  bool get notificationsEnabled => _notificationsEnabled;
+
+  void toggleNotifications(bool value) {
+    _notificationsEnabled = value;
+    notifyListeners();
+    // Có thể lưu trạng thái này vào database thông qua _dbHelper
+  }
+
+  // Thêm các phương thức khác liên quan đến cài đặt ở đây
 }
