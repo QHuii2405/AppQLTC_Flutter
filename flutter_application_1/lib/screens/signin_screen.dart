@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import '../database_helper.dart';
+import 'package:flutter_application_1/services/database_helper.dart'; // Đảm bảo đường dẫn chính xác
+import 'package:flutter_application_1/models/user.dart'; // Import User model
 
 class SigninScreen extends StatefulWidget {
+  const SigninScreen({super.key});
+
   @override
   _SigninScreenState createState() => _SigninScreenState();
 }
@@ -22,10 +25,7 @@ class _SigninScreenState extends State<SigninScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF5CBDD9),
-              Color(0xFF4BAFCC),
-            ],
+            colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
           ),
         ),
         child: SafeArea(
@@ -33,8 +33,10 @@ class _SigninScreenState extends State<SigninScreen> {
             padding: EdgeInsets.all(20.0),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height - 
-                          MediaQuery.of(context).padding.top - 40,
+                minHeight:
+                    MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).padding.top -
+                    40,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -69,13 +71,10 @@ class _SigninScreenState extends State<SigninScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          _isSignInMode 
-                            ? 'Sign in to your account' 
-                            : 'Join EWallet today',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white70,
-                          ),
+                          _isSignInMode
+                              ? 'Sign in to your account'
+                              : 'Join EWallet today',
+                          style: TextStyle(fontSize: 16, color: Colors.white70),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -86,7 +85,7 @@ class _SigninScreenState extends State<SigninScreen> {
                   _buildGoogleButton(),
                   SizedBox(height: 12),
                   _buildFacebookButton(),
-                  
+
                   // Divider
                   Container(
                     margin: EdgeInsets.symmetric(vertical: 25),
@@ -154,7 +153,7 @@ class _SigninScreenState extends State<SigninScreen> {
 
                   // Main Action Button
                   _buildMainActionButton(),
-                  
+
                   // Switch Mode Link
                   Container(
                     margin: EdgeInsets.only(top: 20),
@@ -162,9 +161,9 @@ class _SigninScreenState extends State<SigninScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          _isSignInMode 
-                            ? "Don't have an account? " 
-                            : 'Already have an account? ',
+                          _isSignInMode
+                              ? "Don't have an account? "
+                              : 'Already have an account? ',
                           style: TextStyle(color: Colors.white70),
                         ),
                         GestureDetector(
@@ -197,7 +196,7 @@ class _SigninScreenState extends State<SigninScreen> {
   }
 
   Widget _buildGoogleButton() {
-    return Container(
+    return SizedBox(
       height: 50,
       child: ElevatedButton(
         onPressed: () {
@@ -226,10 +225,7 @@ class _SigninScreenState extends State<SigninScreen> {
             SizedBox(width: 12),
             Text(
               'Continue with Google',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -238,7 +234,7 @@ class _SigninScreenState extends State<SigninScreen> {
   }
 
   Widget _buildFacebookButton() {
-    return Container(
+    return SizedBox(
       height: 50,
       child: ElevatedButton(
         onPressed: () {
@@ -267,10 +263,7 @@ class _SigninScreenState extends State<SigninScreen> {
             SizedBox(width: 12),
             Text(
               'Continue with Facebook',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -284,7 +277,7 @@ class _SigninScreenState extends State<SigninScreen> {
     required IconData icon,
     TextInputType? keyboardType,
   }) {
-    return Container(
+    return SizedBox(
       height: 50,
       child: TextField(
         controller: controller,
@@ -315,7 +308,7 @@ class _SigninScreenState extends State<SigninScreen> {
   }
 
   Widget _buildPasswordField() {
-    return Container(
+    return SizedBox(
       height: 50,
       child: TextField(
         controller: _passwordController,
@@ -358,7 +351,7 @@ class _SigninScreenState extends State<SigninScreen> {
   }
 
   Widget _buildMainActionButton() {
-    return Container(
+    return SizedBox(
       height: 50,
       child: ElevatedButton(
         onPressed: _isLoading ? null : (_isSignInMode ? _signIn : _signUp),
@@ -370,29 +363,27 @@ class _SigninScreenState extends State<SigninScreen> {
           ),
           elevation: 3,
         ),
-        child: _isLoading
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
+        child:
+            _isLoading
+                ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                : Text(
+                  _isSignInMode ? 'Sign In' : 'Create Account',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-              )
-            : Text(
-                _isSignInMode ? 'Sign In' : 'Create Account',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
       ),
     );
   }
 
   void _signIn() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showSnackBar('Please fill in all fields');
+      _showSnackBar('Vui lòng điền đầy đủ email và mật khẩu.');
       return;
     }
 
@@ -402,52 +393,52 @@ class _SigninScreenState extends State<SigninScreen> {
 
     try {
       DatabaseHelper dbHelper = DatabaseHelper();
-      
-      // Verify user credentials
-      Map<String, dynamic>? user = await dbHelper.getUser(
-        _emailController.text, 
-        _passwordController.text
+
+      // Sử dụng getUserByEmailAndPassword, trả về đối tượng User
+      User? user = await dbHelper.getUserByEmailAndPassword(
+        _emailController.text,
+        _passwordController.text,
       );
-      
+
       if (user != null) {
-        _showSnackBar('Welcome back!');
-        
-        // Navigate to home screen with user data
+        _showSnackBar('Chào mừng trở lại!');
+
+        // Điều hướng đến home screen với đối tượng User
         Future.delayed(Duration(milliseconds: 500), () {
           Navigator.pushReplacementNamed(
-            context, 
+            context,
             '/home',
-            arguments: user,
+            arguments: user, // Truyền đối tượng User
           );
         });
       } else {
-        _showSnackBar('Invalid email or password');
+        _showSnackBar('Email hoặc mật khẩu không hợp lệ.');
       }
-
     } catch (e) {
-      _showSnackBar('Error signing in: $e');
+      _showSnackBar('Lỗi khi đăng nhập: $e');
+      print('Lỗi đăng nhập: $e'); // In lỗi ra console để debug
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   void _signUp() async {
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _passwordController.text.isEmpty) {
-      _showSnackBar('Please fill in all fields');
+      _showSnackBar('Vui lòng điền đầy đủ tất cả các trường.');
       return;
     }
 
     if (!_isValidEmail(_emailController.text)) {
-      _showSnackBar('Please enter a valid email address');
+      _showSnackBar('Vui lòng nhập địa chỉ email hợp lệ.');
       return;
     }
 
     if (_passwordController.text.length < 6) {
-      _showSnackBar('Password must be at least 6 characters long');
+      _showSnackBar('Mật khẩu phải có ít nhất 6 ký tự.');
       return;
     }
 
@@ -457,219 +448,69 @@ class _SigninScreenState extends State<SigninScreen> {
 
     try {
       DatabaseHelper dbHelper = DatabaseHelper();
-      
-      // Check if email already exists
+
+      // Kiểm tra xem email đã tồn tại chưa
       bool emailExists = await dbHelper.checkEmailExists(_emailController.text);
       if (emailExists) {
-        _showSnackBar('Email already exists');
+        _showSnackBar('Email đã tồn tại.');
         setState(() {
           _isLoading = false;
         });
         return;
       }
 
-      // Create new user
-      Map<String, dynamic> user = {
-        'name': _nameController.text,
-        'email': _emailController.text,
-        'password': _passwordController.text,
-        'created_at': DateTime.now().toIso8601String(),
-      };
+      // Tạo đối tượng User mới
+      User newUser = User(
+        name: _nameController.text,
+        email: _emailController.text,
+        password: _passwordController.text, // Trong thực tế: HASH mật khẩu này!
+        createdAt: DateTime.now().toIso8601String(),
+        profileImageUrl: null, // Mặc định là null khi đăng ký
+      );
 
-      await dbHelper.insertUser(user);
-      _showSnackBar('Account created successfully!');
-      
-      // Switch to sign in mode
+      await dbHelper.insertUser(newUser);
+      _showSnackBar('Tài khoản đã được tạo thành công!');
+
+      // Chuyển sang chế độ đăng nhập
       setState(() {
         _isSignInMode = true;
         _clearForm();
       });
-
     } catch (e) {
-      _showSnackBar('Error creating account: $e');
+      _showSnackBar('Lỗi khi tạo tài khoản: $e');
+      print('Lỗi tạo tài khoản: $e'); // In lỗi ra console để debug
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   void _showForgotPasswordDialog() {
-    final _resetEmailController = TextEditingController();
-    
+    final resetEmailController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Reset Password',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enter your email address to receive a reset code.',
-              style: TextStyle(color: Colors.grey[600]),
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              'Đặt lại mật khẩu',
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 20),
-            TextField(
-              controller: _resetEmailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                hintText: 'Email Address',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (_resetEmailController.text.isEmpty) {
-                _showSnackBar('Please enter your email address');
-                return;
-              }
-              if (!_isValidEmail(_resetEmailController.text)) {
-                _showSnackBar('Please enter a valid email address');
-                return;
-              }
-              
-              Navigator.pop(context);
-              await _requestPasswordReset(_resetEmailController.text);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF5CBDD9),
-            ),
-            child: Text('Send Reset Code', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _requestPasswordReset(String email) async {
-    try {
-      DatabaseHelper dbHelper = DatabaseHelper();
-      String? resetToken = await dbHelper.createResetToken(email);
-      
-      if (resetToken != null) {
-        _showSnackBar('Reset code sent! Check your notifications.');
-        
-        // Hiển thị mã reset (trong thực tế, mã này sẽ được gửi qua email/SMS)
-        _showResetCodeDialog(resetToken, email);
-      } else {
-        _showSnackBar('Email address not found');
-      }
-    } catch (e) {
-      _showSnackBar('Error sending reset code: $e');
-    }
-  }
-
-  void _showResetCodeDialog(String resetCode, String email) {
-    final _codeController = TextEditingController();
-    final _newPasswordController = TextEditingController();
-    final _confirmPasswordController = TextEditingController();
-    bool _isNewPasswordVisible = false;
-    bool _isConfirmPasswordVisible = false;
-    
-    // Hiển thị mã reset trong console/debug (chỉ để test)
-    print('Reset code for $email: $resetCode');
-    
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(
-            'Enter Reset Code',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
+            content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info, color: Colors.blue, size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Reset code: $resetCode\n(Valid for 15 minutes)',
-                          style: TextStyle(
-                            color: Colors.blue[800],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                Text(
+                  'Nhập địa chỉ email của bạn để nhận mã đặt lại.',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
                 SizedBox(height: 20),
                 TextField(
-                  controller: _codeController,
-                  keyboardType: TextInputType.number,
+                  controller: resetEmailController,
+                  keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    hintText: 'Enter 6-digit code',
-                    prefixIcon: Icon(Icons.security),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: _newPasswordController,
-                  obscureText: !_isNewPasswordVisible,
-                  decoration: InputDecoration(
-                    hintText: 'New Password',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isNewPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isNewPasswordVisible = !_isNewPasswordVisible;
-                        });
-                      },
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: _confirmPasswordController,
-                  obscureText: !_isConfirmPasswordVisible,
-                  decoration: InputDecoration(
-                    hintText: 'Confirm Password',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _isConfirmPasswordVisible = !_isConfirmPasswordVisible;
-                        });
-                      },
-                    ),
+                    hintText: 'Địa chỉ Email',
+                    prefixIcon: Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -677,61 +518,235 @@ class _SigninScreenState extends State<SigninScreen> {
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                await _resetPassword(
-                  email,
-                  _codeController.text,
-                  _newPasswordController.text,
-                  _confirmPasswordController.text,
-                );
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF5CBDD9),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Hủy'),
               ),
-              child: Text('Reset Password', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (resetEmailController.text.isEmpty) {
+                    _showSnackBar('Vui lòng nhập địa chỉ email của bạn.');
+                    return;
+                  }
+                  if (!_isValidEmail(resetEmailController.text)) {
+                    _showSnackBar('Vui lòng nhập địa chỉ email hợp lệ.');
+                    return;
+                  }
+
+                  Navigator.pop(context);
+                  await _requestPasswordReset(resetEmailController.text);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF5CBDD9),
+                ),
+                child: Text(
+                  'Gửi mã đặt lại',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
     );
   }
 
-  Future<void> _resetPassword(String email, String code, String newPassword, String confirmPassword) async {
+  Future<void> _requestPasswordReset(String email) async {
+    try {
+      DatabaseHelper dbHelper = DatabaseHelper();
+      String? resetToken = await dbHelper.createResetToken(email);
+
+      if (resetToken != null) {
+        _showSnackBar('Mã đặt lại đã được gửi! Kiểm tra thông báo của bạn.');
+
+        // Hiển thị mã reset (trong thực tế, mã này sẽ được gửi qua email/SMS)
+        _showResetCodeDialog(resetToken, email);
+      } else {
+        _showSnackBar('Không tìm thấy địa chỉ email.');
+      }
+    } catch (e) {
+      _showSnackBar('Lỗi khi gửi mã đặt lại: $e');
+      print('Lỗi gửi mã đặt lại: $e');
+    }
+  }
+
+  void _showResetCodeDialog(String resetCode, String email) {
+    final codeController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool isNewPasswordVisible = false;
+    bool isConfirmPasswordVisible = false;
+
+    // Hiển thị mã reset trong console/debug (chỉ để test)
+    print('Mã đặt lại cho $email: $resetCode');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: Text(
+                    'Nhập mã đặt lại',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue[200]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info, color: Colors.blue, size: 20),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Mã đặt lại: $resetCode\n(Có hiệu lực trong 15 phút)',
+                                  style: TextStyle(
+                                    color: Colors.blue[800],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        TextField(
+                          controller: codeController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            hintText: 'Nhập mã 6 chữ số',
+                            prefixIcon: Icon(Icons.security),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        TextField(
+                          controller: newPasswordController,
+                          obscureText: !isNewPasswordVisible,
+                          decoration: InputDecoration(
+                            hintText: 'Mật khẩu mới',
+                            prefixIcon: Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                isNewPasswordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isNewPasswordVisible = !isNewPasswordVisible;
+                                });
+                              },
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        TextField(
+                          controller: confirmPasswordController,
+                          obscureText: !isConfirmPasswordVisible,
+                          decoration: InputDecoration(
+                            hintText: 'Xác nhận mật khẩu',
+                            prefixIcon: Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                isConfirmPasswordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isConfirmPasswordVisible =
+                                      !isConfirmPasswordVisible;
+                                });
+                              },
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Hủy'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await _resetPassword(
+                          email,
+                          codeController.text,
+                          newPasswordController.text,
+                          confirmPasswordController.text,
+                        );
+                        Navigator.pop(context); // Đóng dialog sau khi xử lý
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF5CBDD9),
+                      ),
+                      child: Text(
+                        'Đặt lại mật khẩu',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  Future<void> _resetPassword(
+    String email,
+    String code,
+    String newPassword,
+    String confirmPassword,
+  ) async {
     if (code.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
-      _showSnackBar('Please fill in all fields');
+      _showSnackBar('Vui lòng điền đầy đủ tất cả các trường.');
       return;
     }
 
     if (newPassword != confirmPassword) {
-      _showSnackBar('Passwords do not match');
+      _showSnackBar('Mật khẩu không khớp.');
       return;
     }
 
     if (newPassword.length < 6) {
-      _showSnackBar('Password must be at least 6 characters long');
+      _showSnackBar('Mật khẩu phải có ít nhất 6 ký tự.');
       return;
     }
 
     try {
       DatabaseHelper dbHelper = DatabaseHelper();
       bool success = await dbHelper.resetPassword(email, code, newPassword);
-      
+
       if (success) {
-        _showSnackBar('Password reset successfully! You can now sign in.');
+        _showSnackBar(
+          'Mật khẩu đã được đặt lại thành công! Bây giờ bạn có thể đăng nhập.',
+        );
         _clearForm();
       } else {
-        _showSnackBar('Invalid or expired reset code');
+        _showSnackBar('Mã đặt lại không hợp lệ hoặc đã hết hạn.');
       }
     } catch (e) {
-      _showSnackBar('Error resetting password: $e');
+      _showSnackBar('Lỗi khi đặt lại mật khẩu: $e');
+      print('Lỗi đặt lại mật khẩu: $e');
     }
   }
 
@@ -751,15 +766,13 @@ class _SigninScreenState extends State<SigninScreen> {
         content: Text(message),
         backgroundColor: Colors.black87,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 
   void _showFeatureNotAvailable() {
-    _showSnackBar('This feature will be available soon');
+    _showSnackBar('Tính năng này sẽ sớm khả dụng');
   }
 
   @override

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import '../database_helper.dart';
+import 'package:flutter_application_1/services/database_helper.dart'; // Đảm bảo đường dẫn chính xác
+import 'package:flutter_application_1/models/user.dart'; // Import User model
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -20,10 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF5CBDD9),
-              Color(0xFF4BAFCC),
-            ],
+            colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
           ),
         ),
         child: SafeArea(
@@ -65,10 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: Text(
                       'Forgot password?',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
                   ),
                 ),
@@ -83,10 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   margin: EdgeInsets.symmetric(vertical: 40),
                   child: Text(
                     'or',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -103,7 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     SizedBox(width: 20),
                     _buildSocialButton(
                       color: Colors.red,
-                      icon: Icons.g_mobiledata,
+                      icon:
+                          Icons.g_mobiledata, // Sử dụng g_mobiledata cho Google
                       onTap: () => _showFeatureNotAvailable(),
                     ),
                   ],
@@ -123,7 +118,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          Navigator.pushReplacementNamed(context, '/signin');
+                          // Điều hướng đến màn hình đăng ký
+                          // Giả định bạn có một route '/signup'
+                          _showSnackBar('Tính năng đăng ký sẽ sớm ra mắt!');
+                          // Navigator.pushReplacementNamed(context, '/signup');
                         },
                         child: Text(
                           'Sign up',
@@ -150,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required String hintText,
     required IconData icon,
   }) {
-    return Container(
+    return SizedBox(
       height: 55,
       child: TextField(
         controller: controller,
@@ -179,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildPasswordField() {
-    return Container(
+    return SizedBox(
       height: 55,
       child: TextField(
         controller: _passwordController,
@@ -220,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginButton() {
-    return Container(
+    return SizedBox(
       height: 55,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _login,
@@ -232,15 +230,13 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           elevation: 0,
         ),
-        child: _isLoading
-            ? CircularProgressIndicator(color: Colors.white)
-            : Text(
-                'Login',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+        child:
+            _isLoading
+                ? CircularProgressIndicator(color: Colors.white)
+                : Text(
+                  'Login',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
       ),
     );
   }
@@ -259,18 +255,14 @@ class _LoginScreenState extends State<LoginScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(
-          icon,
-          color: color,
-          size: 24,
-        ),
+        child: Icon(icon, color: color, size: 24),
       ),
     );
   }
 
   void _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showSnackBar('Please fill in all fields');
+      _showSnackBar('Vui lòng điền đầy đủ email và mật khẩu.');
       return;
     }
 
@@ -280,60 +272,58 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       DatabaseHelper dbHelper = DatabaseHelper();
-      Map<String, dynamic>? user = await dbHelper.getUser(
+      // Sử dụng getUserByEmailAndPassword, trả về đối tượng User
+      User? user = await dbHelper.getUserByEmailAndPassword(
         _emailController.text,
         _passwordController.text,
       );
 
       if (user != null) {
-        _showSnackBar('Login successful!');
-        
-        // Navigate to home screen with user data
+        _showSnackBar('Đăng nhập thành công!');
+
+        // Điều hướng đến home screen với đối tượng User
         Future.delayed(Duration(seconds: 1), () {
-          Navigator.pushReplacementNamed(
-            context,
-            '/home',
-            arguments: user,
-          );
+          Navigator.pushReplacementNamed(context, '/home', arguments: user);
         });
       } else {
-        _showSnackBar('Invalid email or password');
+        _showSnackBar('Email hoặc mật khẩu không hợp lệ.');
       }
     } catch (e) {
-      _showSnackBar('Error logging in: $e');
+      _showSnackBar('Lỗi khi đăng nhập: $e');
+      print('Lỗi đăng nhập: $e'); // In lỗi ra console để debug
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   void _showForgotPassword() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Forgot Password'),
-        content: Text('This feature is not available yet. Please contact support.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Quên mật khẩu'),
+            content: Text(
+              'Tính năng này chưa khả dụng. Vui lòng liên hệ hỗ trợ.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('OK'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _showFeatureNotAvailable() {
-    _showSnackBar('This feature is not available yet');
+    _showSnackBar('Tính năng này chưa khả dụng');
   }
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.black87,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.black87),
     );
   }
 

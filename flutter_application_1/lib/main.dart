@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/home_screen.dart';
 import 'package:flutter_application_1/screens/login_screen.dart';
+import 'package:flutter_application_1/screens/setting_profile_screen.dart';
 import 'package:flutter_application_1/screens/setting_screen.dart';
 import 'package:flutter_application_1/screens/signin_screen.dart';
 
@@ -23,6 +24,9 @@ class MyApp extends StatelessWidget {
         '/login': (context) => LoginScreen(),
         '/home': (context) => HomeScreen(),
         '/settings': (context) => SettingsScreen(),
+        '/setprofile':
+            (context) =>
+                ProfileScreen(), // Assuming profile is part of HomeScreen
       },
     );
   }

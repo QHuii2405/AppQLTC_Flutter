@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/database_helper.dart';
-import 'dart:async'; // Cần cho Timer
-import 'package:intl/intl.dart'; // Để định dạng ngày tháng và tiền tệ
+import 'package:flutter_application_1/controllers/home_controllers.dart';
+import 'package:flutter_application_1/models/transaction.dart';
+import 'package:flutter_application_1/models/user.dart';
+import 'dart:async';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart'; // Import Provider
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,20 +14,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic>? userData;
-  int _currentIndex = 0; // Đặt chỉ mục hiện tại là 0 (Trang chủ)
-  final DatabaseHelper _dbHelper = DatabaseHelper(); // Khởi tạo DatabaseHelper
-
-  List<Map<String, dynamic>> _transactions = []; // Dữ liệu giao dịch từ DB
-  Map<int, Map<String, dynamic>> _categoriesMap =
-      {}; // Ánh xạ ID danh mục tới dữ liệu danh mục
-  Map<int, Map<String, dynamic>> _accountsMap =
-      {}; // Ánh xạ ID tài khoản tới dữ liệu tài khoản
-
-  bool _isLoading = true; // Trạng thái tải dữ liệu
-  String _currentTime = DateFormat(
-    'HH:mm',
-  ).format(DateTime.now()); // Thời gian hiện tại
+  User? _loggedInUser; // Lưu trữ đối tượng User đã đăng nhập
+  int _currentIndex = 0;
+  String _currentTime = DateFormat('HH:mm').format(DateTime.now());
 
   @override
   void initState() {
@@ -36,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentTime = DateFormat('HH:mm').format(DateTime.now());
         });
       } else {
-        timer.cancel(); // Hủy timer nếu widget không còn được gắn kết
+        timer.cancel();
       }
     });
   }
@@ -44,191 +36,63 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Lấy dữ liệu người dùng từ arguments và tải dữ liệu từ database
-    if (userData == null) {
+    // Lấy dữ liệu người dùng từ arguments
+    if (_loggedInUser == null) {
       final args = ModalRoute.of(context)?.settings.arguments;
-      if (args != null) {
-        userData = args as Map<String, dynamic>;
-        _loadData(); // Tải dữ liệu sau khi có userData
+      if (args != null && args is User) {
+        _loggedInUser = args;
+        // Tải dữ liệu cho HomeScreen thông qua Controller
+        Provider.of<HomeController>(
+          context,
+          listen: false,
+        ).loadHomeData(_loggedInUser!.id!);
       }
-    }
-  }
-
-  // Hàm tải tất cả dữ liệu cần thiết từ database
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true; // Bắt đầu tải, hiển thị loading indicator
-    });
-
-    try {
-      if (userData != null && userData!['id'] != null) {
-        final int userId = userData!['id'];
-
-        // Chèn dữ liệu mẫu nếu chưa có (chỉ chạy một lần)
-        await _dbHelper.insertInitialSampleData(userId);
-
-        // Lấy danh mục và tạo map để dễ dàng tra cứu
-        List<Map<String, dynamic>> categories = await _dbHelper.getCategories(
-          userId,
-        );
-        _categoriesMap = {for (var cat in categories) cat['id'] as int: cat};
-
-        // Lấy tài khoản và tạo map để dễ dàng tra cứu
-        List<Map<String, dynamic>> accounts = await _dbHelper.getAccounts(
-          userId,
-        );
-        _accountsMap = {for (var acc in accounts) acc['id'] as int: acc};
-
-        // Lấy giao dịch
-        List<Map<String, dynamic>> fetchedTransactions = await _dbHelper
-            .getTransactions(userId);
-
-        // Định dạng lại giao dịch để hiển thị trên UI
-        _transactions =
-            fetchedTransactions.map((transaction) {
-              final category = _categoriesMap[transaction['category_id']];
-              final account = _accountsMap[transaction['account_id']];
-
-              String formattedAmount = NumberFormat.currency(
-                locale: 'vi_VN',
-                symbol: 'đ',
-                decimalDigits: 0,
-              ).format(transaction['amount']);
-              if (transaction['type'] == 'expense') {
-                formattedAmount = '-$formattedAmount';
-              } else {
-                formattedAmount = '+$formattedAmount';
-              }
-
-              // Chuyển đổi chuỗi ngày tháng từ DB sang định dạng dd/MM/yyyy
-              final transactionDate = DateTime.parse(
-                transaction['transaction_date'],
-              );
-              final formattedDate = DateFormat(
-                'dd/MM/yyyy',
-              ).format(transactionDate);
-
-              return {
-                'name': category?['name'] ?? 'Không rõ',
-                'subtitle': transaction['description'] ?? '',
-                'amount': formattedAmount,
-                'note': account?['name'] ?? 'Không rõ',
-                'avatar': _getCategoryIcon(
-                  category?['name'] ?? '',
-                ), // Lấy icon dựa trên tên danh mục
-                'isExpense': transaction['type'] == 'expense',
-                'date': formattedDate, // Ngày đã định dạng
-              };
-            }).toList();
-      }
-    } catch (e) {
-      print('Lỗi khi tải dữ liệu: $e');
-      _showSnackBar('Không thể tải dữ liệu. Vui lòng thử lại.');
-    } finally {
-      setState(() {
-        _isLoading = false; // Kết thúc tải
-      });
-    }
-  }
-
-  // Hàm giúp lấy icon dựa trên tên danh mục (có thể mở rộng với database)
-  String _getCategoryIcon(String categoryName) {
-    switch (categoryName.toLowerCase()) {
-      case 'ăn uống':
-        return '🍽️';
-      case 'du lịch':
-        return '✈️';
-      case 'tiền lương':
-        return '💰';
-      case 'chữa bệnh':
-        return '🏥';
-      case 'di chuyển':
-        return '🚗';
-      case 'hóa đơn':
-        return '🧾';
-      case 'mua sắm':
-        return '🛍️';
-      case 'thưởng':
-        return '🎁';
-      case 'thu nhập khác':
-        return '📈';
-      default:
-        return '💸'; // Icon mặc định
-    }
-  }
-
-  String _getDayName(String dateString) {
-    // Chuyển đổi từ định dạng dd/MM/yyyy sang YYYY-MM-dd để parse
-    final parts = dateString.split('/');
-    final date = DateTime(
-      int.parse(parts[2]),
-      int.parse(parts[1]),
-      int.parse(parts[0]),
-    );
-    final today = DateTime.now();
-    final yesterday = DateTime(
-      today.year,
-      today.month,
-      today.day,
-    ).subtract(Duration(days: 1));
-    final currentDay = DateTime(today.year, today.month, today.day);
-
-    if (date.day == currentDay.day &&
-        date.month == currentDay.month &&
-        date.year == currentDay.year) {
-      return 'Hôm nay';
-    } else if (date.day == yesterday.day &&
-        date.month == yesterday.month &&
-        date.year == yesterday.year) {
-      return 'Hôm qua';
-    } else {
-      final weekdays = [
-        'Chủ nhật',
-        'Thứ hai',
-        'Thứ ba',
-        'Thứ tư',
-        'Thứ năm',
-        'Thứ sáu',
-        'Thứ bảy',
-      ];
-      return weekdays[date.weekday % 7];
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildStatusBar(),
-              _buildHeader(),
-              _buildChart(),
-              Expanded(
-                child:
-                    _isLoading
-                        ? Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                        : _buildTransactionsList(),
+    // Lắng nghe thay đổi từ HomeController
+    return Consumer<HomeController>(
+      builder: (context, controller, child) {
+        return Scaffold(
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
               ),
-            ],
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  _buildStatusBar(),
+                  _buildHeader(
+                    controller.currentUser,
+                  ), // Truyền currentUser từ controller
+                  _buildChart(), // Biểu đồ vẫn tĩnh, cần dữ liệu từ controller để làm động
+                  Expanded(
+                    child:
+                        controller.isLoading
+                            ? Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                            : _buildTransactionsList(
+                              controller,
+                            ), // Truyền controller để lấy transactions
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+          bottomNavigationBar: _buildBottomNavigationBar(controller),
+        );
+      },
     );
   }
 
@@ -239,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            _currentTime, // Hiển thị thời gian động
+            _currentTime,
             style: TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -260,13 +124,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(User? user) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       child: Row(
         children: [
           GestureDetector(
-            onTap: _showProfileMenu,
+            onTap: () => _showProfileMenu(user), // Truyền user vào menu
             child: Container(
               width: 50,
               height: 50,
@@ -280,15 +144,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(25),
-                child: Image.asset(
-                  'assets/profile.png', // Bạn cần thêm asset này
-                  width: 50,
-                  height: 50,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(Icons.person, color: Colors.white, size: 30);
-                  },
-                ),
+                child:
+                    user?.profileImageUrl != null &&
+                            user!.profileImageUrl!.isNotEmpty
+                        ? Image.network(
+                          user.profileImageUrl!,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 30,
+                            );
+                          },
+                        )
+                        : Icon(Icons.person, color: Colors.white, size: 30),
               ),
             ),
           ),
@@ -304,8 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Text(
-                userData?['name'] ??
-                    'Người dùng', // Hiển thị tên người dùng từ DB
+                user?.name ?? 'Người dùng',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -320,9 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildChart() {
-    // BIỂU ĐỒ NÀY VẪN ĐANG SỬ DỤNG DỮ LIỆU TĨNH.
-    // Để làm cho nó động, bạn sẽ cần tổng hợp dữ liệu giao dịch theo thời gian (ví dụ: hàng ngày, hàng tuần)
-    // và tính toán tổng chi tiêu/thu nhập để vẽ biểu đồ.
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: EdgeInsets.all(20),
@@ -368,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(
             height: 100,
             child: CustomPaint(
-              painter: ChartPainter(),
+              painter: ChartPainter(), // Vẫn là biểu đồ tĩnh
               size: Size(double.infinity, 100),
             ),
           ),
@@ -377,21 +245,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTransactionsList() {
+  Widget _buildTransactionsList(HomeController controller) {
     // Nhóm giao dịch theo ngày
-    Map<String, List<Map<String, dynamic>>> groupedTransactions = {};
-    for (var transaction in _transactions) {
-      String date = transaction['date'];
-      if (!groupedTransactions.containsKey(date)) {
-        groupedTransactions[date] = [];
+    Map<String, List<Transaction>> groupedTransactions = {};
+    for (var transaction in controller.transactions) {
+      // Chuyển đổi từ định dạng yyyy-MM-dd sang dd/MM/yyyy để nhóm
+      final formattedDate = DateFormat(
+        'dd/MM/yyyy',
+      ).format(DateFormat('yyyy-MM-dd').parse(transaction.transactionDate));
+      if (!groupedTransactions.containsKey(formattedDate)) {
+        groupedTransactions[formattedDate] = [];
       }
-      groupedTransactions[date]!.add(transaction);
+      groupedTransactions[formattedDate]!.add(transaction);
     }
 
     // Sắp xếp các ngày để hiển thị gần đây nhất trước
     final sortedDates =
         groupedTransactions.keys.toList()..sort((a, b) {
-          // Chuyển đổi từ định dạng dd/MM/yyyy sang YYYY-MM-dd để so sánh
           final dateA = DateFormat('dd/MM/yyyy').parse(a);
           final dateB = DateFormat('dd/MM/yyyy').parse(b);
           return dateB.compareTo(dateA);
@@ -410,8 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: sortedDates.length,
         itemBuilder: (context, index) {
           String date = sortedDates[index];
-          List<Map<String, dynamic>> dayTransactions =
-              groupedTransactions[date]!;
+          List<Transaction> dayTransactions = groupedTransactions[date]!;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,7 +300,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     Text(
-                      _getDayName(date),
+                      controller.getDayName(
+                        DateFormat(
+                          'yyyy-MM-dd',
+                        ).format(DateFormat('dd/MM/yyyy').parse(date)),
+                      ), // Lấy tên ngày
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withOpacity(0.9),
@@ -441,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               ...dayTransactions.map(
-                (transaction) => _buildTransactionItem(transaction),
+                (transaction) => _buildTransactionItem(transaction, controller),
               ),
             ],
           );
@@ -450,7 +323,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTransactionItem(Map<String, dynamic> transaction) {
+  Widget _buildTransactionItem(
+    Transaction transaction,
+    HomeController controller,
+  ) {
+    String formattedAmount = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: 'đ',
+      decimalDigits: 0,
+    ).format(transaction.amount);
+    if (transaction.type == 'expense') {
+      formattedAmount = '-$formattedAmount';
+    } else {
+      formattedAmount = '+$formattedAmount';
+    }
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
@@ -464,7 +351,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: Center(
               child: Text(
-                transaction['avatar'], // Icon từ dữ liệu đã định dạng
+                transaction.categoryIcon ??
+                    controller.getCategoryIcon(
+                      transaction.categoryName ?? '',
+                    ), // Icon từ DB hoặc mặc định
                 style: TextStyle(fontSize: 24),
               ),
             ),
@@ -475,7 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  transaction['name'], // Tên danh mục
+                  transaction.categoryName ?? 'Không rõ', // Tên danh mục từ DB
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -483,7 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Text(
-                  transaction['subtitle'], // Mô tả giao dịch
+                  transaction.description ?? '', // Mô tả giao dịch
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white.withOpacity(0.8),
@@ -496,7 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                transaction['amount'], // Số tiền đã định dạng
+                formattedAmount, // Số tiền đã định dạng
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -504,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Text(
-                transaction['note'], // Tên tài khoản
+                transaction.accountName ?? 'Không rõ', // Tên tài khoản từ DB
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.white.withOpacity(0.7),
@@ -517,7 +407,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBottomNavigationBar() {
+  Widget _buildBottomNavigationBar(HomeController controller) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -541,20 +431,22 @@ class _HomeScreenState extends State<HomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            // Chỉ cập nhật trạng thái nếu index thay đổi
             if (_currentIndex != index) {
               setState(() {
                 _currentIndex = index;
               });
 
-              // Logic điều hướng luân phiên
               switch (index) {
                 case 0: // Trang chủ (đã ở đây)
                   // Không làm gì hoặc cuộn lên đầu trang nếu cần
                   break;
                 case 1: // Ví tiền
                   // Giả định có route '/wallets'
-                  Navigator.pushReplacementNamed(context, '/wallets');
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/wallets',
+                    arguments: controller.currentUser,
+                  );
                   break;
                 case 2: // Nút thêm (thường là một hành động, không phải chuyển màn hình chính)
                   _showSnackBar('Mở màn hình thêm giao dịch!');
@@ -562,10 +454,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   break;
                 case 3: // Thống kê
                   // Giả định có route '/statistics'
-                  Navigator.pushReplacementNamed(context, '/statistics');
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/statistics',
+                    arguments: controller.currentUser,
+                  );
                   break;
                 case 4: // Cài đặt
-                  Navigator.pushReplacementNamed(context, '/settings');
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/settings',
+                    arguments: controller.currentUser,
+                  );
                   break;
                 default:
                   _showSnackBar('Tính năng này sẽ sớm ra mắt!');
@@ -660,7 +560,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showProfileMenu() {
+  void _showProfileMenu(User? user) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -689,24 +589,46 @@ class _HomeScreenState extends State<HomeScreen> {
                 CircleAvatar(
                   radius: 40,
                   backgroundColor: Color(0xFF5CBDD9),
-                  child: Icon(Icons.person, size: 40, color: Colors.white),
+                  backgroundImage:
+                      user?.profileImageUrl != null &&
+                              user!.profileImageUrl!.isNotEmpty
+                          ? NetworkImage(user.profileImageUrl!)
+                              as ImageProvider<Object>?
+                          : null,
+                  child:
+                      user?.profileImageUrl == null ||
+                              user!.profileImageUrl!.isEmpty
+                          ? Icon(Icons.person, size: 40, color: Colors.white)
+                          : null,
                 ),
                 SizedBox(height: 15),
                 Text(
-                  userData?['name'] ?? 'Người dùng',
+                  user?.name ?? 'Người dùng',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  userData?['email'] ?? 'user@example.com',
+                  user?.email ?? 'user@example.com',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 SizedBox(height: 30),
                 ListTile(
                   leading: Icon(Icons.person_outline, color: Color(0xFF5CBDD9)),
                   title: Text('Thông tin cá nhân'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showSnackBar('Tính năng thông tin cá nhân sẽ sớm ra mắt');
+                  onTap: () async {
+                    Navigator.pop(context); // Đóng bottom sheet
+                    // Đảm bảo ProfileScreen nhận được đối tượng User
+                    final updatedUser = await Navigator.pushNamed(
+                      context,
+                      '/profile',
+                      arguments: user, // Truyền đối tượng User
+                    );
+                    // Nếu ProfileScreen trả về User đã cập nhật, cập nhật lại trong HomeController
+                    if (updatedUser != null && updatedUser is User) {
+                      Provider.of<HomeController>(
+                        context,
+                        listen: false,
+                      ).updateCurrentUser(updatedUser);
+                    }
                   },
                 ),
                 ListTile(
@@ -716,8 +638,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   title: Text('Cài đặt'),
                   onTap: () {
-                    Navigator.pop(context);
-                    _showSnackBar('Tính năng cài đặt sẽ sớm ra mắt');
+                    Navigator.pop(context); // Đóng bottom sheet
+                    Navigator.pushReplacementNamed(
+                      context,
+                      '/settings',
+                      arguments: user,
+                    );
                   },
                 ),
                 ListTile(
@@ -779,8 +705,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ChartPainter vẫn sử dụng dữ liệu tĩnh.
-// Để làm cho nó động, bạn sẽ cần truyền dữ liệu giao dịch đã tổng hợp vào đây.
 class ChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -789,7 +713,6 @@ class ChartPainter extends CustomPainter {
           ..strokeWidth = 3
           ..style = PaintingStyle.stroke;
 
-    // Sample data points for expense line (pink)
     final expensePoints = [
       Offset(0, size.height * 0.7),
       Offset(size.width * 0.15, size.height * 0.5),
@@ -800,7 +723,6 @@ class ChartPainter extends CustomPainter {
       Offset(size.width, size.height * 0.2),
     ];
 
-    // Sample data points for income line (green)
     final incomePoints = [
       Offset(0, size.height * 0.8),
       Offset(size.width * 0.15, size.height * 0.6),
@@ -811,7 +733,6 @@ class ChartPainter extends CustomPainter {
       Offset(size.width, size.height * 0.3),
     ];
 
-    // Draw expense line (pink) with smooth curves
     paint.color = Colors.pink;
     final expensePath = Path();
     expensePath.moveTo(expensePoints[0].dx, expensePoints[0].dy);
@@ -832,7 +753,6 @@ class ChartPainter extends CustomPainter {
     }
     canvas.drawPath(expensePath, paint);
 
-    // Draw income line (green) with smooth curves
     paint.color = Colors.green;
     final incomePath = Path();
     incomePath.moveTo(incomePoints[0].dx, incomePoints[0].dy);
@@ -853,14 +773,11 @@ class ChartPainter extends CustomPainter {
     }
     canvas.drawPath(incomePath, paint);
 
-    // Draw dots
     paint.style = PaintingStyle.fill;
 
-    // Expense dots
     paint.color = Colors.pink;
     for (final point in expensePoints) {
       canvas.drawCircle(point, 4, paint);
-      // Add white border
       paint.color = Colors.white;
       canvas.drawCircle(
         point,
@@ -872,11 +789,9 @@ class ChartPainter extends CustomPainter {
       paint.color = Colors.pink;
     }
 
-    // Income dots
     paint.color = Colors.green;
     for (final point in incomePoints) {
       canvas.drawCircle(point, 4, paint);
-      // Add white border
       paint.color = Colors.white;
       canvas.drawCircle(
         point,
