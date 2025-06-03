@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? userData;
-  int _currentIndex = 0;
+  int _currentIndex = 0; // Đặt chỉ mục hiện tại là 0 (Trang chủ)
   final DatabaseHelper _dbHelper = DatabaseHelper(); // Khởi tạo DatabaseHelper
 
   List<Map<String, dynamic>> _transactions = []; // Dữ liệu giao dịch từ DB
@@ -158,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _getDayName(String dateString) {
-    // Chuyển đổi từ định dạng dd/MM/yyyy sang yyyy-MM-dd để parse
+    // Chuyển đổi từ định dạng dd/MM/yyyy sang YYYY-MM-dd để parse
     final parts = dateString.split('/');
     final date = DateTime(
       int.parse(parts[2]),
@@ -391,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Sắp xếp các ngày để hiển thị gần đây nhất trước
     final sortedDates =
         groupedTransactions.keys.toList()..sort((a, b) {
-          // Chuyển đổi từ định dạng dd/MM/yyyy sang yyyy-MM-dd để so sánh
+          // Chuyển đổi từ định dạng dd/MM/yyyy sang YYYY-MM-dd để so sánh
           final dateA = DateFormat('dd/MM/yyyy').parse(a);
           final dateB = DateFormat('dd/MM/yyyy').parse(b);
           return dateB.compareTo(dateA);
@@ -541,9 +541,36 @@ class _HomeScreenState extends State<HomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
+            // Chỉ cập nhật trạng thái nếu index thay đổi
+            if (_currentIndex != index) {
+              setState(() {
+                _currentIndex = index;
+              });
+
+              // Logic điều hướng luân phiên
+              switch (index) {
+                case 0: // Trang chủ (đã ở đây)
+                  // Không làm gì hoặc cuộn lên đầu trang nếu cần
+                  break;
+                case 1: // Ví tiền
+                  // Giả định có route '/wallets'
+                  Navigator.pushReplacementNamed(context, '/wallets');
+                  break;
+                case 2: // Nút thêm (thường là một hành động, không phải chuyển màn hình chính)
+                  _showSnackBar('Mở màn hình thêm giao dịch!');
+                  // Hoặc Navigator.pushNamed(context, '/add_transaction');
+                  break;
+                case 3: // Thống kê
+                  // Giả định có route '/statistics'
+                  Navigator.pushReplacementNamed(context, '/statistics');
+                  break;
+                case 4: // Cài đặt
+                  Navigator.pushReplacementNamed(context, '/settings');
+                  break;
+                default:
+                  _showSnackBar('Tính năng này sẽ sớm ra mắt!');
+              }
+            }
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,

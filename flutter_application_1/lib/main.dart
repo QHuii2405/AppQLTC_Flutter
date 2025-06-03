@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'screens/signin_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'package:flutter_application_1/screens/home_screen.dart';
+import 'package:flutter_application_1/screens/login_screen.dart';
+import 'package:flutter_application_1/screens/setting_screen.dart';
+import 'package:flutter_application_1/screens/signin_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -21,6 +22,7 @@ class MyApp extends StatelessWidget {
         '/signin': (context) => SigninScreen(),
         '/login': (context) => LoginScreen(),
         '/home': (context) => HomeScreen(),
+        '/settings': (context) => SettingsScreen(),
       },
     );
   }
