@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/controllers/home_controllers.dart';
+import 'package:flutter_application_1/controllers/home_controller.dart';
 import 'package:flutter_application_1/controllers/settings_controller.dart';
 import 'package:flutter_application_1/models/user.dart';
 import 'package:provider/provider.dart'; // Import Provider
