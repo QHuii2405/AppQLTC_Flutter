@@ -1,8 +1,8 @@
-import 'package:sqflite/sqflite.dart'
-    as sqflite_api; // Đổi tên import để tránh xung đột
+import 'package:sqflite/sqflite.dart' as sqflite_api;
 import 'package:path/path.dart';
 import 'dart:math'; // Dùng để tạo số ngẫu nhiên cho token
 import 'package:intl/intl.dart'; // Để định dạng ngày tháng
+import 'dart:core'; // Đã thêm import này để đảm bảo DateTime được định nghĩa
 
 // Import các Model classes
 import 'package:flutter_application_1/models/user.dart'; // Thay thế bằng đường dẫn thực tế của bạn
@@ -15,33 +15,25 @@ class DatabaseHelper {
   factory DatabaseHelper() => _instance;
   DatabaseHelper._internal();
 
-  static sqflite_api.Database? _database; // Sử dụng prefix cho Database
+  static sqflite_api.Database? _database;
 
   Future<sqflite_api.Database> get database async {
-    // Sử dụng prefix cho Database
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
   }
 
   Future<sqflite_api.Database> _initDatabase() async {
-    // Sử dụng prefix cho Database
-    String path = join(
-      await sqflite_api.getDatabasesPath(),
-      'ewallet.db',
-    ); // Đã sửa lỗi tại đây
+    String path = join(await sqflite_api.getDatabasesPath(), 'ewallet.db');
     return await sqflite_api.openDatabase(
-      // Sử dụng prefix cho openDatabase
       path,
-      version:
-          4, // Đảm bảo version được tăng lên nếu bạn thêm cột profile_image_url
+      version: 5, // Đã tăng version lên 5 để thêm cột dob và description
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future _onCreate(sqflite_api.Database db, int version) async {
-    // Sử dụng prefix cho Database
     await db.execute('''
       CREATE TABLE users(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +43,9 @@ class DatabaseHelper {
         created_at TEXT NOT NULL,
         reset_token TEXT,
         reset_token_expires INTEGER,
-        profile_image_url TEXT -- Cột ảnh đại diện đã được thêm
+        profile_image_url TEXT,
+        dob TEXT, -- Cột ngày sinh đã được thêm
+        description TEXT -- Cột mô tả bản thân đã được thêm
       )
     ''');
 
@@ -105,7 +99,9 @@ class DatabaseHelper {
           'admin_password', // Trong ứng dụng thực tế, hãy mã hóa mật khẩu này!
       'name': 'Người dùng Admin',
       'created_at': currentTime,
-      'profile_image_url': null, // Giá trị mặc định cho ảnh đại diện
+      'profile_image_url': null,
+      'dob': null, // Giá trị mặc định cho dob
+      'description': null, // Giá trị mặc định cho description
     });
 
     print('Database đã được tạo và người dùng admin đã được chèn.');
@@ -116,7 +112,6 @@ class DatabaseHelper {
     int oldVersion,
     int newVersion,
   ) async {
-    // Sử dụng prefix cho Database
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE users ADD COLUMN reset_token TEXT');
       await db.execute(
@@ -177,17 +172,25 @@ class DatabaseHelper {
         'Đã nâng cấp lên version 4: Đã thêm cột profile_image_url vào bảng users.',
       );
     }
+    if (oldVersion < 5) {
+      // Nâng cấp lên version 5 để thêm cột dob và description
+      await db.execute('ALTER TABLE users ADD COLUMN dob TEXT');
+      await db.execute('ALTER TABLE users ADD COLUMN description TEXT');
+      print(
+        'Đã nâng cấp lên version 5: Đã thêm cột dob và description vào bảng users.',
+      );
+    }
   }
 
   // --- Phương thức quản lý người dùng ---
 
   Future<int> insertUser(User user) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.insert('users', user.toMap());
   }
 
   Future<User?> getUserById(int id) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     List<Map<String, dynamic>> results = await db.query(
       'users',
       where: 'id = ?',
@@ -200,7 +203,7 @@ class DatabaseHelper {
   }
 
   Future<User?> getUserByEmailAndPassword(String email, String password) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     List<Map<String, dynamic>> results = await db.query(
       'users',
       where: 'email = ? AND password = ?',
@@ -213,7 +216,7 @@ class DatabaseHelper {
   }
 
   Future<bool> checkEmailExists(String email) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     List<Map<String, dynamic>> results = await db.query(
       'users',
       where: 'email = ?',
@@ -223,7 +226,7 @@ class DatabaseHelper {
   }
 
   Future<int> updateUser(User user) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.update(
       'users',
       user.toMap(),
@@ -233,7 +236,7 @@ class DatabaseHelper {
   }
 
   Future<String?> createResetToken(String email) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     List<Map<String, dynamic>> results = await db.query(
       'users',
       where: 'email = ?',
@@ -255,7 +258,7 @@ class DatabaseHelper {
   }
 
   Future<bool> verifyResetToken(String email, String token) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     List<Map<String, dynamic>> results = await db.query(
       'users',
       where: 'email = ? AND reset_token = ?',
@@ -277,7 +280,7 @@ class DatabaseHelper {
     String token,
     String newPassword,
   ) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     if (!await verifyResetToken(email, token)) {
       return false;
     }
@@ -300,7 +303,7 @@ class DatabaseHelper {
   }
 
   Future<void> cleanExpiredTokens() async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     int currentTime = DateTime.now().millisecondsSinceEpoch;
     await db.update(
       'users',
@@ -313,12 +316,12 @@ class DatabaseHelper {
   // --- Phương thức quản lý tài khoản ---
 
   Future<int> insertAccount(Account account) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.insert('accounts', account.toMap());
   }
 
   Future<List<Account>> getAccounts(int userId) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'accounts',
       where: 'user_id = ?',
@@ -328,7 +331,7 @@ class DatabaseHelper {
   }
 
   Future<Account?> getAccountById(int accountId) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'accounts',
       where: 'id = ?',
@@ -341,7 +344,7 @@ class DatabaseHelper {
   }
 
   Future<int> updateAccount(Account account) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.update(
       'accounts',
       account.toMap(),
@@ -351,19 +354,19 @@ class DatabaseHelper {
   }
 
   Future<int> deleteAccount(int id) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.delete('accounts', where: 'id = ?', whereArgs: [id]);
   }
 
   // --- Phương thức quản lý danh mục ---
 
   Future<int> insertCategory(Category category) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.insert('categories', category.toMap());
   }
 
   Future<List<Category>> getCategories(int userId) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'categories',
       where: 'user_id = ?',
@@ -373,7 +376,7 @@ class DatabaseHelper {
   }
 
   Future<Category?> getCategoryById(int categoryId) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'categories',
       where: 'id = ?',
@@ -386,7 +389,7 @@ class DatabaseHelper {
   }
 
   Future<int> updateCategory(Category category) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.update(
       'categories',
       category.toMap(),
@@ -396,16 +399,15 @@ class DatabaseHelper {
   }
 
   Future<int> deleteCategory(int id) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     return await db.delete('categories', where: 'id = ?', whereArgs: [id]);
   }
 
   // --- Phương thức quản lý giao dịch ---
 
   Future<int> insertTransaction(Transaction transaction) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     await db.transaction((txn) async {
-      // Sử dụng prefix cho transaction
       int transactionId = await txn.insert('transactions', transaction.toMap());
 
       Account? account = await getAccountById(transaction.accountId);
@@ -429,7 +431,7 @@ class DatabaseHelper {
   }
 
   Future<List<Transaction>> getTransactions(int userId) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     // Sử dụng JOIN để lấy tên danh mục và tên tài khoản
     final List<Map<String, dynamic>> maps = await db.rawQuery(
       '''
@@ -454,10 +456,9 @@ class DatabaseHelper {
     Transaction oldTransaction,
     Transaction newTransaction,
   ) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
 
     await db.transaction((txn) async {
-      // Sử dụng prefix cho transaction
       // Hoàn tác ảnh hưởng của giao dịch cũ lên số dư tài khoản
       Account? oldAccount = await getAccountById(oldTransaction.accountId);
       if (oldAccount != null) {
@@ -486,7 +487,7 @@ class DatabaseHelper {
         }
         await txn.update(
           'accounts',
-          {'balance': balanceAfterApply}, // Đã sửa lỗi ở đây
+          {'balance': balanceAfterApply},
           where: 'id = ?',
           whereArgs: [newAccount.id],
         );
@@ -504,10 +505,9 @@ class DatabaseHelper {
   }
 
   Future<int> deleteTransaction(int id) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
 
     await db.transaction((txn) async {
-      // Sử dụng prefix cho transaction
       // Lấy chi tiết giao dịch trước khi xóa để hoàn tác số dư tài khoản
       final List<Map<String, dynamic>> transactionResult = await txn.query(
         'transactions',
@@ -545,7 +545,7 @@ class DatabaseHelper {
 
   // Phương thức chèn dữ liệu mẫu ban đầu
   Future<void> insertInitialSampleData(int userId) async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
 
     // Kiểm tra xem đã có dữ liệu mẫu chưa để tránh chèn lại
     List<Map<String, dynamic>> existingAccounts = await db.query(
@@ -650,11 +650,95 @@ class DatabaseHelper {
     );
     int otherIncomeCategoryId = await insertCategory(otherIncomeCategory);
     print('Đã chèn danh mục mẫu.');
+
+    // Chèn giao dịch mẫu
+    String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    String yesterday = DateFormat(
+      'yyyy-MM-dd',
+    ).format(DateTime.now().subtract(Duration(days: 1)));
+    String twoDaysAgo = DateFormat(
+      'yyyy-MM-dd',
+    ).format(DateTime.now().subtract(Duration(days: 2)));
+    String threeDaysAgo = DateFormat(
+      'yyyy-MM-dd',
+    ).format(DateTime.now().subtract(Duration(days: 3)));
+    String lastWeek = DateFormat(
+      'yyyy-MM-dd',
+    ).format(DateTime.now().subtract(Duration(days: 7)));
+
+    await insertTransaction(
+      Transaction(
+        userId: userId,
+        type: 'expense',
+        categoryId: foodCategoryId,
+        amount: 50000.0,
+        description: 'Bữa trưa tại nhà hàng',
+        transactionDate: today,
+        paymentMethod: 'Tiền mặt',
+        accountId: mainWalletId,
+        createdAt: currentTime,
+      ),
+    );
+    await insertTransaction(
+      Transaction(
+        userId: userId,
+        type: 'income',
+        categoryId: salaryCategoryId,
+        amount: 1000000.0,
+        description: 'Nhận lương tháng 5',
+        transactionDate: yesterday,
+        paymentMethod: 'Chuyển khoản',
+        accountId: bankAccountId,
+        createdAt: currentTime,
+      ),
+    );
+    await insertTransaction(
+      Transaction(
+        userId: userId,
+        type: 'expense',
+        categoryId: shoppingCategoryId,
+        amount: 250000.0,
+        description: 'Mua sắm quần áo',
+        transactionDate: twoDaysAgo,
+        paymentMethod: 'Thẻ tín dụng',
+        accountId: bankAccountId,
+        createdAt: currentTime,
+      ),
+    );
+    await insertTransaction(
+      Transaction(
+        userId: userId,
+        type: 'expense',
+        categoryId: transportationCategoryId,
+        amount: 20000.0,
+        description: 'Tiền xăng xe',
+        transactionDate: threeDaysAgo,
+        paymentMethod: 'Tiền mặt',
+        accountId: mainWalletId,
+        createdAt: currentTime,
+      ),
+    );
+    await insertTransaction(
+      Transaction(
+        userId: userId,
+        type: 'income',
+        categoryId: bonusCategoryId,
+        amount: 200000.0,
+        description: 'Tiền thưởng dự án',
+        transactionDate: lastWeek,
+        paymentMethod: 'Chuyển khoản',
+        accountId: bankAccountId,
+        createdAt: currentTime,
+      ),
+    );
+
+    print('Đã chèn giao dịch mẫu.');
+    print('Hoàn tất chèn dữ liệu mẫu.');
   }
 
   // Đóng database
   Future<void> close() async {
-    sqflite_api.Database db = await database; // Sử dụng prefix cho Database
+    sqflite_api.Database db = await database;
     await db.close();
     _database = null; // Xóa instance khi đóng
   }

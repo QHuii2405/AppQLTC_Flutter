@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/views/security_setting_screen.dart';
 import 'package:flutter_application_1/views/setting_profile_screen.dart';
 import 'package:flutter_application_1/views/setting_screen.dart';
-import 'package:provider/provider.dart'; // Import Provider package
-
-// Import các màn hình và controller của bạn
+import 'package:provider/provider.dart';
 import 'package:flutter_application_1/views/login_screen.dart'; // Màn hình đăng nhập
 import 'package:flutter_application_1/views/signin_screen.dart'; // Màn hình đăng ký/đăng nhập
 import 'package:flutter_application_1/views/home_screen.dart'; // Màn hình chính
 import 'package:flutter_application_1/controllers/home_controller.dart'; // HomeController của bạn
 import 'package:flutter_application_1/controllers/settings_controller.dart'; // SettingsController của bạn
 import 'package:flutter_application_1/controllers/profile_controller.dart'; // Import ProfileController mới
-import 'package:flutter_application_1/models/user.dart'; // User model
 import 'package:flutter_application_1/services/database_helper.dart'; // Import DatabaseHelper
 
 void main() {
@@ -64,14 +61,6 @@ class MyApp extends StatelessWidget {
             (context) => const SecuritySettingsScreen(), // Đã thêm route này
         // Thêm các route khác của bạn ở đây
       },
-      // Nếu bạn muốn xử lý route động hoặc truyền đối tượng User trực tiếp
-      // onGenerateRoute: (settings) {
-      //   if (settings.name == '/home') {
-      //     final user = settings.arguments as User?;
-      //     return MaterialPageRoute(builder: (context) => HomeScreen(user: user));
-      //   }
-      //   return null;
-      // },
     );
   }
 }

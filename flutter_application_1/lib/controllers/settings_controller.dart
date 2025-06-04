@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/database_helper.dart';
 
 class SettingsController extends ChangeNotifier {
+  // ignore: unused_field
   final DatabaseHelper _dbHelper;
 
   SettingsController(this._dbHelper);

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/models/user.dart';
-import 'package:flutter_application_1/services/database_helper.dart'; // Import DatabaseHelper
+import 'package:flutter_application_1/services/database_helper.dart'; // Import DatabaseHelper (vẫn cần cho _selectDate và nếu có logic khác)
 import 'package:intl/intl.dart'; // Để định dạng ngày tháng
+import 'package:provider/provider.dart'; // Import Provider
+import 'package:flutter_application_1/controllers/profile_controller.dart'; // Import ProfileController
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -46,6 +48,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _loggedInUser!.description ??
             ''; // Giả định User model có trường description
         _tempProfileImageUrl = _loggedInUser!.profileImageUrl;
+
+        // Cập nhật ProfileController với người dùng hiện tại
+        // Đảm bảo ProfileController đã được cung cấp ở cấp độ cao hơn (trong main.dart)
+        Provider.of<ProfileController>(
+          context,
+          listen: false,
+        ).setCurrentUser(_loggedInUser!);
       }
     }
   }
@@ -380,25 +389,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  void _saveProfileChanges() {
-    // Logic lưu thay đổi vào database
-    _showSnackBar('Lưu thay đổi hồ sơ');
-    setState(() {
-      _isEditingProfile = false; // Thoát chế độ chỉnh sửa sau khi lưu
-      // Cập nhật _loggedInUser với dữ liệu mới từ các controller
-      if (_loggedInUser != null) {
-        _loggedInUser!.name = _nameController.text;
-        _loggedInUser!.profileImageUrl = _tempProfileImageUrl;
-        _loggedInUser!.dob =
-            _dobController.text; // Cần thêm trường dob vào User model
-        _loggedInUser!.description =
-            _descriptionController
-                .text; // Cần thêm trường description vào User model
-        // Gọi DatabaseHelper để cập nhật người dùng trong DB tại đây
-        // DatabaseHelper().updateUser(_loggedInUser!);
+  void _saveProfileChanges() async {
+    // Đã thêm async
+    if (_loggedInUser == null) {
+      _showSnackBar('Không tìm thấy thông tin người dùng để lưu.');
+      return;
+    }
+
+    // Cập nhật đối tượng _loggedInUser với dữ liệu từ các controller
+    _loggedInUser!.name = _nameController.text;
+    _loggedInUser!.profileImageUrl = _tempProfileImageUrl;
+    _loggedInUser!.dob = _dobController.text;
+    _loggedInUser!.description = _descriptionController.text;
+
+    try {
+      // Lấy ProfileController từ context
+      final profileController = Provider.of<ProfileController>(
+        context,
+        listen: false,
+      );
+
+      // Gọi phương thức updateProfile của ProfileController
+      bool success = await profileController.updateProfile(
+        userId: _loggedInUser!.id!,
+        name: _loggedInUser!.name,
+        profileImageUrl: _loggedInUser!.profileImageUrl,
+        dob: _loggedInUser!.dob,
+        description: _loggedInUser!.description,
+      );
+
+      if (success) {
+        _showSnackBar('Lưu thay đổi hồ sơ thành công!');
+        setState(() {
+          _isEditingProfile = false; // Thoát chế độ chỉnh sửa sau khi lưu
+        });
+        // Trả về người dùng đã cập nhật cho màn hình gọi (ví dụ: HomeScreen)
+        // ProfileController đã notifyListeners, nên các màn hình khác sẽ tự cập nhật
+        Navigator.pop(context, _loggedInUser);
+      } else {
+        _showSnackBar('Có lỗi xảy ra khi lưu thay đổi hồ sơ.');
       }
-    });
-    Navigator.pop(context, _loggedInUser); // Trả về người dùng đã cập nhật
+    } catch (e) {
+      _showSnackBar('Lỗi khi lưu thay đổi hồ sơ: $e');
+      print('Lỗi lưu hồ sơ: $e'); // In lỗi ra console để debug
+    }
   }
 
   Widget _buildSectionTitle(String title) {
