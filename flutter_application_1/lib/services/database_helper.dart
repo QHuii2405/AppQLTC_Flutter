@@ -45,7 +45,7 @@ class DatabaseHelper {
         reset_token_expires INTEGER,
         profile_image_url TEXT,
         dob TEXT, -- Cột ngày sinh đã được thêm
-        description TEXT -- Cột mô tả bản thân đã được thêm
+        description TEXT
       )
     ''');
 
@@ -95,8 +95,7 @@ class DatabaseHelper {
     final String currentTime = DateTime.now().toIso8601String();
     await db.insert('users', {
       'email': 'admin@example.com',
-      'password':
-          'admin_password', // Trong ứng dụng thực tế, hãy mã hóa mật khẩu này!
+      'password': 'admin_password', // Trong ứng dụng thực tế, hãy mã hóa mật khẩu này!
       'name': 'Người dùng Admin',
       'created_at': currentTime,
       'profile_image_url': null,
@@ -107,19 +106,11 @@ class DatabaseHelper {
     print('Database đã được tạo và người dùng admin đã được chèn.');
   }
 
-  Future _onUpgrade(
-    sqflite_api.Database db,
-    int oldVersion,
-    int newVersion,
-  ) async {
+  Future _onUpgrade(sqflite_api.Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE users ADD COLUMN reset_token TEXT');
-      await db.execute(
-        'ALTER TABLE users ADD COLUMN reset_token_expires INTEGER',
-      );
-      print(
-        'Đã nâng cấp lên version 2: Đã thêm cột reset_token vào bảng users.',
-      );
+      await db.execute('ALTER TABLE users ADD COLUMN reset_token_expires INTEGER');
+      print('Đã nâng cấp lên version 2: Đã thêm cột reset_token vào bảng users.');
     }
     if (oldVersion < 3) {
       await db.execute('''
@@ -161,24 +152,16 @@ class DatabaseHelper {
           FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
         )
       ''');
-      print(
-        'Đã nâng cấp lên version 3: Đã tạo các bảng accounts, categories và transactions.',
-      );
+      print('Đã nâng cấp lên version 3: Đã tạo các bảng accounts, categories và transactions.');
     }
-    if (oldVersion < 4) {
-      // Nâng cấp lên version 4 để thêm cột profile_image_url
+    if (oldVersion < 4) { // Nâng cấp lên version 4 để thêm cột profile_image_url
       await db.execute('ALTER TABLE users ADD COLUMN profile_image_url TEXT');
-      print(
-        'Đã nâng cấp lên version 4: Đã thêm cột profile_image_url vào bảng users.',
-      );
+      print('Đã nâng cấp lên version 4: Đã thêm cột profile_image_url vào bảng users.');
     }
-    if (oldVersion < 5) {
-      // Nâng cấp lên version 5 để thêm cột dob và description
+    if (oldVersion < 5) { // Nâng cấp lên version 5 để thêm cột dob và description
       await db.execute('ALTER TABLE users ADD COLUMN dob TEXT');
       await db.execute('ALTER TABLE users ADD COLUMN description TEXT');
-      print(
-        'Đã nâng cấp lên version 5: Đã thêm cột dob và description vào bảng users.',
-      );
+      print('Đã nâng cấp lên version 5: Đã thêm cột dob và description vào bảng users.');
     }
   }
 
@@ -246,11 +229,13 @@ class DatabaseHelper {
       return null;
     }
     String resetToken = _generateResetToken();
-    int expiresAt =
-        DateTime.now().add(Duration(minutes: 15)).millisecondsSinceEpoch;
+    int expiresAt = DateTime.now().add(Duration(minutes: 15)).millisecondsSinceEpoch;
     await db.update(
       'users',
-      {'reset_token': resetToken, 'reset_token_expires': expiresAt},
+      {
+        'reset_token': resetToken,
+        'reset_token_expires': expiresAt,
+      },
       where: 'email = ?',
       whereArgs: [email],
     );
@@ -268,18 +253,13 @@ class DatabaseHelper {
       return false;
     }
     int? expiresAt = results.first['reset_token_expires'];
-    if (expiresAt == null ||
-        DateTime.now().millisecondsSinceEpoch > expiresAt) {
+    if (expiresAt == null || DateTime.now().millisecondsSinceEpoch > expiresAt) {
       return false;
     }
     return true;
   }
 
-  Future<bool> resetPassword(
-    String email,
-    String token,
-    String newPassword,
-  ) async {
+  Future<bool> resetPassword(String email, String token, String newPassword) async {
     sqflite_api.Database db = await database;
     if (!await verifyResetToken(email, token)) {
       return false;
@@ -307,7 +287,10 @@ class DatabaseHelper {
     int currentTime = DateTime.now().millisecondsSinceEpoch;
     await db.update(
       'users',
-      {'reset_token': null, 'reset_token_expires': null},
+      {
+        'reset_token': null,
+        'reset_token_expires': null,
+      },
       where: 'reset_token_expires < ?',
       whereArgs: [currentTime],
     );
@@ -322,21 +305,13 @@ class DatabaseHelper {
 
   Future<List<Account>> getAccounts(int userId) async {
     sqflite_api.Database db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'accounts',
-      where: 'user_id = ?',
-      whereArgs: [userId],
-    );
+    final List<Map<String, dynamic>> maps = await db.query('accounts', where: 'user_id = ?', whereArgs: [userId]);
     return List.generate(maps.length, (i) => Account.fromMap(maps[i]));
   }
 
   Future<Account?> getAccountById(int accountId) async {
     sqflite_api.Database db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'accounts',
-      where: 'id = ?',
-      whereArgs: [accountId],
-    );
+    final List<Map<String, dynamic>> maps = await db.query('accounts', where: 'id = ?', whereArgs: [accountId]);
     if (maps.isNotEmpty) {
       return Account.fromMap(maps.first);
     }
@@ -345,12 +320,7 @@ class DatabaseHelper {
 
   Future<int> updateAccount(Account account) async {
     sqflite_api.Database db = await database;
-    return await db.update(
-      'accounts',
-      account.toMap(),
-      where: 'id = ?',
-      whereArgs: [account.id],
-    );
+    return await db.update('accounts', account.toMap(), where: 'id = ?', whereArgs: [account.id]);
   }
 
   Future<int> deleteAccount(int id) async {
@@ -367,21 +337,13 @@ class DatabaseHelper {
 
   Future<List<Category>> getCategories(int userId) async {
     sqflite_api.Database db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'categories',
-      where: 'user_id = ?',
-      whereArgs: [userId],
-    );
+    final List<Map<String, dynamic>> maps = await db.query('categories', where: 'user_id = ?', whereArgs: [userId]);
     return List.generate(maps.length, (i) => Category.fromMap(maps[i]));
   }
 
   Future<Category?> getCategoryById(int categoryId) async {
     sqflite_api.Database db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'categories',
-      where: 'id = ?',
-      whereArgs: [categoryId],
-    );
+    final List<Map<String, dynamic>> maps = await db.query('categories', where: 'id = ?', whereArgs: [categoryId]);
     if (maps.isNotEmpty) {
       return Category.fromMap(maps.first);
     }
@@ -390,12 +352,7 @@ class DatabaseHelper {
 
   Future<int> updateCategory(Category category) async {
     sqflite_api.Database db = await database;
-    return await db.update(
-      'categories',
-      category.toMap(),
-      where: 'id = ?',
-      whereArgs: [category.id],
-    );
+    return await db.update('categories', category.toMap(), where: 'id = ?', whereArgs: [category.id]);
   }
 
   Future<int> deleteCategory(int id) async {
@@ -433,8 +390,7 @@ class DatabaseHelper {
   Future<List<Transaction>> getTransactions(int userId) async {
     sqflite_api.Database db = await database;
     // Sử dụng JOIN để lấy tên danh mục và tên tài khoản
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
         t.*, 
         c.name AS category_name, 
@@ -445,17 +401,12 @@ class DatabaseHelper {
       JOIN accounts a ON t.account_id = a.id
       WHERE t.user_id = ?
       ORDER BY t.transaction_date DESC
-    ''',
-      [userId],
-    );
+    ''', [userId]);
 
     return List.generate(maps.length, (i) => Transaction.fromMap(maps[i]));
   }
 
-  Future<int> updateTransaction(
-    Transaction oldTransaction,
-    Transaction newTransaction,
-  ) async {
+  Future<int> updateTransaction(Transaction oldTransaction, Transaction newTransaction) async {
     sqflite_api.Database db = await database;
 
     await db.transaction((txn) async {
@@ -494,19 +445,14 @@ class DatabaseHelper {
       }
 
       // Cập nhật bản ghi giao dịch
-      await txn.update(
-        'transactions',
-        newTransaction.toMap(),
-        where: 'id = ?',
-        whereArgs: [newTransaction.id],
-      );
+      await txn.update('transactions', newTransaction.toMap(), where: 'id = ?', whereArgs: [newTransaction.id]);
     });
     return 1;
   }
 
   Future<int> deleteTransaction(int id) async {
     sqflite_api.Database db = await database;
-
+    
     await db.transaction((txn) async {
       // Lấy chi tiết giao dịch trước khi xóa để hoàn tác số dư tài khoản
       final List<Map<String, dynamic>> transactionResult = await txn.query(
@@ -516,9 +462,7 @@ class DatabaseHelper {
       );
 
       if (transactionResult.isNotEmpty) {
-        final Transaction transactionToDelete = Transaction.fromMap(
-          transactionResult.first,
-        );
+        final Transaction transactionToDelete = Transaction.fromMap(transactionResult.first);
         Account? account = await getAccountById(transactionToDelete.accountId);
 
         if (account != null) {
@@ -548,15 +492,9 @@ class DatabaseHelper {
     sqflite_api.Database db = await database;
 
     // Kiểm tra xem đã có dữ liệu mẫu chưa để tránh chèn lại
-    List<Map<String, dynamic>> existingAccounts = await db.query(
-      'accounts',
-      where: 'user_id = ?',
-      whereArgs: [userId],
-    );
+    List<Map<String, dynamic>> existingAccounts = await db.query('accounts', where: 'user_id = ?', whereArgs: [userId]);
     if (existingAccounts.isNotEmpty) {
-      print(
-        'Dữ liệu mẫu đã tồn tại cho người dùng $userId. Bỏ qua chèn dữ liệu mẫu.',
-      );
+      print('Dữ liệu mẫu đã tồn tại cho người dùng $userId. Bỏ qua chèn dữ liệu mẫu.');
       return;
     }
 
@@ -564,173 +502,63 @@ class DatabaseHelper {
     final String currentTime = DateTime.now().toIso8601String();
 
     // Chèn tài khoản mẫu
-    Account mainWallet = Account(
-      userId: userId,
-      name: 'Ví chính',
-      balance: 1000000.0,
-      currency: 'VND',
-      createdAt: currentTime,
-    );
+    Account mainWallet = Account(userId: userId, name: 'Ví chính', balance: 1000000.0, currency: 'VND', createdAt: currentTime);
     int mainWalletId = await insertAccount(mainWallet);
-    Account bankAccount = Account(
-      userId: userId,
-      name: 'Tài khoản ngân hàng',
-      balance: 5000000.0,
-      currency: 'VND',
-      createdAt: currentTime,
-    );
+    Account bankAccount = Account(userId: userId, name: 'Tài khoản ngân hàng', balance: 5000000.0, currency: 'VND', createdAt: currentTime);
     int bankAccountId = await insertAccount(bankAccount);
-    print(
-      'Đã chèn tài khoản mẫu: Ví chính (ID: $mainWalletId), Tài khoản ngân hàng (ID: $bankAccountId)',
-    );
+    print('Đã chèn tài khoản mẫu: Ví chính (ID: $mainWalletId), Tài khoản ngân hàng (ID: $bankAccountId)');
 
     // Chèn danh mục mẫu
-    Category foodCategory = Category(
-      userId: userId,
-      name: 'Ăn uống',
-      type: 'expense',
-      icon: '🍽️',
-      createdAt: currentTime,
-    );
+    Category foodCategory = Category(userId: userId, name: 'Ăn uống', type: 'expense', icon: '🍽️', createdAt: currentTime);
     int foodCategoryId = await insertCategory(foodCategory);
-    Category shoppingCategory = Category(
-      userId: userId,
-      name: 'Mua sắm',
-      type: 'expense',
-      icon: '🛍️',
-      createdAt: currentTime,
-    );
+    Category shoppingCategory = Category(userId: userId, name: 'Mua sắm', type: 'expense', icon: '🛍️', createdAt: currentTime);
     int shoppingCategoryId = await insertCategory(shoppingCategory);
-    Category entertainmentCategory = Category(
-      userId: userId,
-      name: 'Giải trí',
-      type: 'expense',
-      icon: '🏖️',
-      createdAt: currentTime,
-    );
+    Category entertainmentCategory = Category(userId: userId, name: 'Giải trí', type: 'expense', icon: '🏖️', createdAt: currentTime);
     int entertainmentCategoryId = await insertCategory(entertainmentCategory);
-    Category transportationCategory = Category(
-      userId: userId,
-      name: 'Di chuyển',
-      type: 'expense',
-      icon: '🚗',
-      createdAt: currentTime,
-    );
+    Category transportationCategory = Category(userId: userId, name: 'Di chuyển', type: 'expense', icon: '🚗', createdAt: currentTime);
     int transportationCategoryId = await insertCategory(transportationCategory);
-    Category billsCategory = Category(
-      userId: userId,
-      name: 'Hóa đơn',
-      type: 'expense',
-      icon: '🧾',
-      createdAt: currentTime,
-    );
+    Category billsCategory = Category(userId: userId, name: 'Hóa đơn', type: 'expense', icon: '🧾', createdAt: currentTime);
     int billsCategoryId = await insertCategory(billsCategory);
-    Category salaryCategory = Category(
-      userId: userId,
-      name: 'Lương',
-      type: 'income',
-      icon: '💰',
-      createdAt: currentTime,
-    );
+    Category salaryCategory = Category(userId: userId, name: 'Lương', type: 'income', icon: '💰', createdAt: currentTime);
     int salaryCategoryId = await insertCategory(salaryCategory);
-    Category bonusCategory = Category(
-      userId: userId,
-      name: 'Thưởng',
-      type: 'income',
-      icon: '🎁',
-      createdAt: currentTime,
-    );
+    Category bonusCategory = Category(userId: userId, name: 'Thưởng', type: 'income', icon: '🎁', createdAt: currentTime);
     int bonusCategoryId = await insertCategory(bonusCategory);
-    Category otherIncomeCategory = Category(
-      userId: userId,
-      name: 'Thu nhập khác',
-      type: 'income',
-      icon: '📈',
-      createdAt: currentTime,
-    );
+    Category otherIncomeCategory = Category(userId: userId, name: 'Thu nhập khác', type: 'income', icon: '📈', createdAt: currentTime);
     int otherIncomeCategoryId = await insertCategory(otherIncomeCategory);
     print('Đã chèn danh mục mẫu.');
 
     // Chèn giao dịch mẫu
     String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    String yesterday = DateFormat(
-      'yyyy-MM-dd',
-    ).format(DateTime.now().subtract(Duration(days: 1)));
-    String twoDaysAgo = DateFormat(
-      'yyyy-MM-dd',
-    ).format(DateTime.now().subtract(Duration(days: 2)));
-    String threeDaysAgo = DateFormat(
-      'yyyy-MM-dd',
-    ).format(DateTime.now().subtract(Duration(days: 3)));
-    String lastWeek = DateFormat(
-      'yyyy-MM-dd',
-    ).format(DateTime.now().subtract(Duration(days: 7)));
+    String yesterday = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(Duration(days: 1)));
+    String twoDaysAgo = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(Duration(days: 2)));
+    String threeDaysAgo = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(Duration(days: 3)));
+    String lastWeek = DateFormat('yyyy-MM-dd').format(DateTime.now().subtract(Duration(days: 7)));
 
-    await insertTransaction(
-      Transaction(
-        userId: userId,
-        type: 'expense',
-        categoryId: foodCategoryId,
-        amount: 50000.0,
-        description: 'Bữa trưa tại nhà hàng',
-        transactionDate: today,
-        paymentMethod: 'Tiền mặt',
-        accountId: mainWalletId,
-        createdAt: currentTime,
-      ),
-    );
-    await insertTransaction(
-      Transaction(
-        userId: userId,
-        type: 'income',
-        categoryId: salaryCategoryId,
-        amount: 1000000.0,
-        description: 'Nhận lương tháng 5',
-        transactionDate: yesterday,
-        paymentMethod: 'Chuyển khoản',
-        accountId: bankAccountId,
-        createdAt: currentTime,
-      ),
-    );
-    await insertTransaction(
-      Transaction(
-        userId: userId,
-        type: 'expense',
-        categoryId: shoppingCategoryId,
-        amount: 250000.0,
-        description: 'Mua sắm quần áo',
-        transactionDate: twoDaysAgo,
-        paymentMethod: 'Thẻ tín dụng',
-        accountId: bankAccountId,
-        createdAt: currentTime,
-      ),
-    );
-    await insertTransaction(
-      Transaction(
-        userId: userId,
-        type: 'expense',
-        categoryId: transportationCategoryId,
-        amount: 20000.0,
-        description: 'Tiền xăng xe',
-        transactionDate: threeDaysAgo,
-        paymentMethod: 'Tiền mặt',
-        accountId: mainWalletId,
-        createdAt: currentTime,
-      ),
-    );
-    await insertTransaction(
-      Transaction(
-        userId: userId,
-        type: 'income',
-        categoryId: bonusCategoryId,
-        amount: 200000.0,
-        description: 'Tiền thưởng dự án',
-        transactionDate: lastWeek,
-        paymentMethod: 'Chuyển khoản',
-        accountId: bankAccountId,
-        createdAt: currentTime,
-      ),
-    );
+    await insertTransaction(Transaction(
+      userId: userId, type: 'expense', categoryId: foodCategoryId, amount: 50000.0,
+      description: 'Bữa trưa tại nhà hàng', transactionDate: today, paymentMethod: 'Tiền mặt',
+      accountId: mainWalletId, createdAt: currentTime,
+    ));
+    await insertTransaction(Transaction(
+      userId: userId, type: 'income', categoryId: salaryCategoryId, amount: 1000000.0,
+      description: 'Nhận lương tháng 5', transactionDate: yesterday, paymentMethod: 'Chuyển khoản',
+      accountId: bankAccountId, createdAt: currentTime,
+    ));
+    await insertTransaction(Transaction(
+      userId: userId, type: 'expense', categoryId: shoppingCategoryId, amount: 250000.0,
+      description: 'Mua sắm quần áo', transactionDate: twoDaysAgo, paymentMethod: 'Thẻ tín dụng',
+      accountId: bankAccountId, createdAt: currentTime,
+    ));
+    await insertTransaction(Transaction(
+      userId: userId, type: 'expense', categoryId: transportationCategoryId, amount: 20000.0,
+      description: 'Tiền xăng xe', transactionDate: threeDaysAgo, paymentMethod: 'Tiền mặt',
+      accountId: mainWalletId, createdAt: currentTime,
+    ));
+    await insertTransaction(Transaction(
+      userId: userId, type: 'income', categoryId: bonusCategoryId, amount: 200000.0,
+      description: 'Tiền thưởng dự án', transactionDate: lastWeek, paymentMethod: 'Chuyển khoản',
+      accountId: bankAccountId, createdAt: currentTime,
+    ));
 
     print('Đã chèn giao dịch mẫu.');
     print('Hoàn tất chèn dữ liệu mẫu.');

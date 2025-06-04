@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/controllers/home_controller.dart';
 import 'package:flutter_application_1/models/transaction.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart'; // Import Provider
-import 'package:flutter_application_1/models/user.dart'; // Thay thế bằng đường dẫn thực tế
+import 'package:provider/provider.dart';
+
+import 'package:flutter_application_1/controllers/home_controller.dart';
+import 'package:flutter_application_1/models/user.dart'; // Import User model
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,7 +47,12 @@ class _HomeScreenState extends State<HomeScreen> {
         // Đảm bảo _loggedInUser.id không null trước khi gọi
         if (_loggedInUser!.id != null) {
           // Đặt cuộc gọi loadHomeData vào một callback sau khi khung hình hoàn thành
+          // Điều này giúp tránh lỗi "setState() or markNeedsBuild() called during build"
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            Provider.of<HomeController>(
+              context,
+              listen: false,
+            ).updateCurrentUser(_loggedInUser!);
             Provider.of<HomeController>(
               context,
               listen: false,
@@ -78,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SafeArea(
               child: Column(
                 children: [
+                  _buildStatusBar(),
                   _buildHeader(
                     controller.currentUser,
                   ), // Truyền currentUser từ controller
@@ -103,6 +110,34 @@ class _HomeScreenState extends State<HomeScreen> {
           bottomNavigationBar: _buildBottomNavigationBar(controller),
         );
       },
+    );
+  }
+
+  Widget _buildStatusBar() {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            _currentTime,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Row(
+            children: [
+              Icon(Icons.signal_cellular_4_bar, color: Colors.white, size: 16),
+              SizedBox(width: 4),
+              Icon(Icons.wifi, color: Colors.white, size: 16),
+              SizedBox(width: 4),
+              Icon(Icons.battery_full, color: Colors.white, size: 16),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -431,8 +466,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                   break;
                 case 2: // Nút thêm (thường là một hành động, không phải chuyển màn hình chính)
-                  _showSnackBar('Mở màn hình thêm giao dịch!');
-                  // Hoặc Navigator.pushNamed(context, '/add_transaction');
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/add_transaction',
+                    arguments: controller.currentUser,
+                  );
                   break;
                 case 3: // Thống kê
                   // Giả định có route '/statistics'
@@ -682,7 +720,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.black87),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.black87,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 }

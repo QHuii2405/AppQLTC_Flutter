@@ -1,36 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/views/security_setting_screen.dart';
-import 'package:flutter_application_1/views/setting_profile_screen.dart';
-import 'package:flutter_application_1/views/setting_screen.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_application_1/views/login_screen.dart'; // Màn hình đăng nhập
+
+// Import các màn hình và controller của bạn
+import 'package:flutter_application_1/views/login_screen.dart'; // Màn hình đăng nhập (nếu có)
 import 'package:flutter_application_1/views/signin_screen.dart'; // Màn hình đăng ký/đăng nhập
 import 'package:flutter_application_1/views/home_screen.dart'; // Màn hình chính
-import 'package:flutter_application_1/controllers/home_controller.dart'; // HomeController của bạn
-import 'package:flutter_application_1/controllers/settings_controller.dart'; // SettingsController của bạn
-import 'package:flutter_application_1/controllers/profile_controller.dart'; // Import ProfileController mới
-import 'package:flutter_application_1/services/database_helper.dart'; // Import DatabaseHelper
+import 'package:flutter_application_1/views/profile_screen.dart'; // Màn hình Profile
+import 'package:flutter_application_1/views/settings_screen.dart'; // Màn hình cài đặt
+import 'package:flutter_application_1/views/wallets_screen.dart'; // Màn hình ví tiền
+import 'package:flutter_application_1/views/statistics_screen.dart'; // Màn hình thống kê
+import 'package:flutter_application_1/views/security_settings_screen.dart'; // Màn hình Bảo mật mới
+import 'package:flutter_application_1/views/category_management_screen.dart'; // Import màn hình quản lý thể loại
+
+import 'package:flutter_application_1/controllers/auth_controller.dart';
+import 'package:flutter_application_1/controllers/home_controller.dart';
+import 'package:flutter_application_1/controllers/settings_controller.dart';
+import 'package:flutter_application_1/controllers/profile_controller.dart';
+import 'package:flutter_application_1/controllers/security_controller.dart'; // Import SecurityController
+import 'package:flutter_application_1/controllers/category_controller.dart'; // Import CategoryController
+
+import 'package:flutter_application_1/models/user.dart';
+import 'package:flutter_application_1/services/database_helper.dart';
 
 void main() {
-  // Khởi tạo DatabaseHelper một lần duy nhất
   final DatabaseHelper dbHelper = DatabaseHelper();
 
   runApp(
-    // Sử dụng MultiProvider để cung cấp nhiều Provider cho toàn bộ ứng dụng
     MultiProvider(
       providers: [
-        // Cung cấp HomeController dưới dạng ChangeNotifierProvider
-        ChangeNotifierProvider(create: (context) => HomeController(dbHelper)),
-        // Cung cấp SettingsController dưới dạng ChangeNotifierProvider
+        // Cung cấp AuthController
+        ChangeNotifierProvider(
+          create: (context) => AuthController(dbHelper),
+        ),
+        // Cung cấp HomeController
+        ChangeNotifierProvider(
+          create: (context) => HomeController(dbHelper),
+        ),
+        // Cung cấp SettingsController
         ChangeNotifierProvider(
           create: (context) => SettingsController(dbHelper),
         ),
-        // Cung cấp ProfileController dưới dạng ChangeNotifierProvider
+        // Cung cấp ProfileController
         ChangeNotifierProvider(
-          create: (context) => ProfileController(dbHelper), // Truyền dbHelper
+          create: (context) => ProfileController(dbHelper),
         ),
+        // Cung cấp SecurityController
+        ChangeNotifierProvider(
+          create: (context) => SecurityController(dbHelper),
+        ),
+        // Cung cấp CategoryController
+        ChangeNotifierProvider(
+          create: (context) => CategoryController(dbHelper),
+        ),
+        // Thêm các Controller khác ở đây
       ],
-      child: MyApp(), // Ứng dụng của bạn
+      child: const MyApp(),
     ),
   );
 }
@@ -42,24 +66,23 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'EWallet App',
-      debugShowCheckedModeBanner: false, // Tắt banner debug
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        fontFamily: 'Inter', // Đặt font Inter cho toàn bộ ứng dụng
+        fontFamily: 'Inter',
       ),
-      initialRoute: '/signin', // Màn hình khởi đầu của ứng dụng
+      initialRoute: '/signin',
       routes: {
         '/login': (context) => const LoginScreen(),
         '/signin': (context) => const SigninScreen(),
         '/home': (context) => HomeScreen(),
-        '/profile': (context) => const ProfileScreen(),
-        '/settings': (context) => const SettingsScreen(),
-        // '/wallets': (context) => WalletsScreen(),
-        // '/statistics': (context) => StatisticsScreen(),
-        '/security_settings':
-            (context) => const SecuritySettingsScreen(), // Đã thêm route này
-        // Thêm các route khác của bạn ở đây
+        '/profile': (context) => const ProfileScreen(), // Constructor là const
+        '/settings': (context) => const SettingsScreen(), // Constructor là const
+        '/wallets': (context) => WalletsScreen(),
+        '/statistics': (context) => StatisticsScreen(),
+        '/security_settings': (context) => const SecuritySettingsScreen(), // Constructor là const
+        '/category_management': (context) => CategoryManagementScreen(), // Không dùng const vì nhận arguments
       },
     );
   }

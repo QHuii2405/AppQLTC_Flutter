@@ -114,7 +114,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               icon: Icons.category_outlined, // Icon mới cho "Thể loại"
               title: 'Thể loại', // Đã đổi tên
               onTap: () {
-                _showSnackBar('Mở quản lý thể loại');
+                Navigator.pushNamed(
+                  context,
+                  '/category_management',
+                  arguments: _loggedInUser,
+                );
               },
             ),
             const SizedBox(height: 20),

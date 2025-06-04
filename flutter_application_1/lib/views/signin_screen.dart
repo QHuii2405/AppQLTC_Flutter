@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/services/database_helper.dart'; // Đảm bảo đường dẫn chính xác
+import 'package:provider/provider.dart'; // Import Provider
+import 'package:flutter_application_1/controllers/auth_controller.dart'; // Import AuthController
 import 'package:flutter_application_1/models/user.dart'; // Import User model
 
 class SigninScreen extends StatefulWidget {
@@ -14,184 +15,226 @@ class _SigninScreenState extends State<SigninScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   bool _isPasswordVisible = false;
-  bool _isLoading = false;
   bool _isSignInMode = true; // true for Sign In, false for Sign Up
 
   @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(20.0),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight:
-                    MediaQuery.of(context).size.height -
-                    MediaQuery.of(context).padding.top -
-                    40,
+    // Sử dụng Consumer để lắng nghe trạng thái từ AuthController
+    return Consumer<AuthController>(
+      builder: (context, authController, child) {
+        return Scaffold(
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Header
-                  Container(
-                    padding: EdgeInsets.only(top: 40, bottom: 40),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(
-                            Icons.account_balance_wallet,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ),
-                        SizedBox(height: 20),
-                        Text(
-                          _isSignInMode ? 'Welcome Back!' : 'Create Account',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          _isSignInMode
-                              ? 'Sign in to your account'
-                              : 'Join EWallet today',
-                          style: TextStyle(fontSize: 16, color: Colors.white70),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20.0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight:
+                        MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        40,
                   ),
-
-                  // Social Login Buttons
-                  _buildGoogleButton(),
-                  SizedBox(height: 12),
-                  _buildFacebookButton(),
-
-                  // Divider
-                  Container(
-                    margin: EdgeInsets.symmetric(vertical: 25),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Divider(color: Colors.white30, thickness: 1),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'or continue with email',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Header
+                      Container(
+                        padding: const EdgeInsets.only(top: 40, bottom: 40),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Icon(
+                                Icons.account_balance_wallet,
+                                size: 40,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Divider(color: Colors.white30, thickness: 1),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Form Fields
-                  if (!_isSignInMode) ...[
-                    _buildTextField(
-                      controller: _nameController,
-                      hintText: 'Full Name',
-                      icon: Icons.person_outline,
-                    ),
-                    SizedBox(height: 16),
-                  ],
-                  _buildTextField(
-                    controller: _emailController,
-                    hintText: 'Email Address',
-                    icon: Icons.email_outlined,
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  SizedBox(height: 16),
-                  _buildPasswordField(),
-
-                  // Forgot Password (only in sign in mode)
-                  if (_isSignInMode) ...[
-                    Container(
-                      alignment: Alignment.centerRight,
-                      margin: EdgeInsets.only(top: 12),
-                      child: GestureDetector(
-                        onTap: _showForgotPasswordDialog,
-                        child: Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.underline,
-                          ),
+                            const SizedBox(height: 20),
+                            Text(
+                              _isSignInMode
+                                  ? 'Welcome Back!'
+                                  : 'Create Account',
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _isSignInMode
+                                  ? 'Sign in to your account'
+                                  : 'Join EWallet today',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.white70,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
 
-                  SizedBox(height: 30),
+                      // Social Login Buttons
+                      _buildGoogleButton(),
+                      const SizedBox(height: 12),
+                      _buildFacebookButton(),
 
-                  // Main Action Button
-                  _buildMainActionButton(),
-
-                  // Switch Mode Link
-                  Container(
-                    margin: EdgeInsets.only(top: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _isSignInMode
-                              ? "Don't have an account? "
-                              : 'Already have an account? ',
-                          style: TextStyle(color: Colors.white70),
+                      // Divider
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 25),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Divider(
+                                color: Colors.white30,
+                                thickness: 1,
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                'or continue with email',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              child: Divider(
+                                color: Colors.white30,
+                                thickness: 1,
+                              ),
+                            ),
+                          ],
                         ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _isSignInMode = !_isSignInMode;
-                              _clearForm();
-                            });
-                          },
-                          child: Text(
-                            _isSignInMode ? 'Sign Up' : 'Sign In',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
+                      ),
+
+                      // Form Fields
+                      if (!_isSignInMode) ...[
+                        _buildTextField(
+                          controller: _nameController,
+                          hintText: 'Full Name',
+                          icon: Icons.person_outline,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      _buildTextField(
+                        controller: _emailController,
+                        hintText: 'Email Address',
+                        icon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildPasswordField(),
+
+                      // Forgot Password (only in sign in mode)
+                      if (_isSignInMode) ...[
+                        Container(
+                          alignment: Alignment.centerRight,
+                          margin: const EdgeInsets.only(top: 12),
+                          child: GestureDetector(
+                            onTap: _showForgotPasswordDialog,
+                            child: const Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                           ),
                         ),
                       ],
-                    ),
+
+                      const SizedBox(height: 30),
+
+                      // Main Action Button
+                      _buildMainActionButton(
+                        authController,
+                      ), // Truyền authController
+                      // Hiển thị lỗi từ AuthController
+                      if (authController.errorMessage != null &&
+                          authController.errorMessage!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: Text(
+                            authController.errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+
+                      // Switch Mode Link
+                      Container(
+                        margin: const EdgeInsets.only(top: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _isSignInMode
+                                  ? "Don't have an account? "
+                                  : 'Already have an account? ',
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _isSignInMode = !_isSignInMode;
+                                  _clearForm();
+                                  authController
+                                      .clearErrorMessage(); // Xóa lỗi khi chuyển đổi chế độ
+                                });
+                              },
+                              child: Text(
+                                _isSignInMode ? 'Sign Up' : 'Sign In',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                  SizedBox(height: 20),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -200,7 +243,7 @@ class _SigninScreenState extends State<SigninScreen> {
       height: 50,
       child: ElevatedButton(
         onPressed: () {
-          _showFeatureNotAvailable();
+          _showSnackBar('Tính năng này sẽ sớm khả dụng');
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
@@ -220,10 +263,14 @@ class _SigninScreenState extends State<SigninScreen> {
                 color: Colors.red,
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Icon(Icons.g_mobiledata, color: Colors.white, size: 14),
+              child: const Icon(
+                Icons.g_mobiledata,
+                color: Colors.white,
+                size: 14,
+              ),
             ),
-            SizedBox(width: 12),
-            Text(
+            const SizedBox(width: 12),
+            const Text(
               'Continue with Google',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             ),
@@ -238,7 +285,7 @@ class _SigninScreenState extends State<SigninScreen> {
       height: 50,
       child: ElevatedButton(
         onPressed: () {
-          _showFeatureNotAvailable();
+          _showSnackBar('Tính năng này sẽ sớm khả dụng');
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
@@ -255,13 +302,13 @@ class _SigninScreenState extends State<SigninScreen> {
               width: 20,
               height: 20,
               decoration: BoxDecoration(
-                color: Color(0xFF1877F2),
+                color: const Color(0xFF1877F2),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Icon(Icons.facebook, color: Colors.white, size: 14),
+              child: const Icon(Icons.facebook, color: Colors.white, size: 14),
             ),
-            SizedBox(width: 12),
-            Text(
+            const SizedBox(width: 12),
+            const Text(
               'Continue with Facebook',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
             ),
@@ -282,25 +329,28 @@ class _SigninScreenState extends State<SigninScreen> {
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
-        style: TextStyle(color: Colors.white, fontSize: 16),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: TextStyle(color: Colors.white60, fontSize: 15),
+          hintStyle: const TextStyle(color: Colors.white60, fontSize: 15),
           prefixIcon: Icon(icon, color: Colors.white70, size: 20),
           filled: true,
           fillColor: Colors.white.withOpacity(0.15),
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white30, width: 1),
+            borderSide: const BorderSide(color: Colors.white30, width: 1),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white30, width: 1),
+            borderSide: const BorderSide(color: Colors.white30, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white, width: 2),
+            borderSide: const BorderSide(color: Colors.white, width: 2),
           ),
         ),
       ),
@@ -313,11 +363,15 @@ class _SigninScreenState extends State<SigninScreen> {
       child: TextField(
         controller: _passwordController,
         obscureText: !_isPasswordVisible,
-        style: TextStyle(color: Colors.white, fontSize: 16),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           hintText: 'Password',
-          hintStyle: TextStyle(color: Colors.white60, fontSize: 15),
-          prefixIcon: Icon(Icons.lock_outline, color: Colors.white70, size: 20),
+          hintStyle: const TextStyle(color: Colors.white60, fontSize: 15),
+          prefixIcon: const Icon(
+            Icons.lock_outline,
+            color: Colors.white70,
+            size: 20,
+          ),
           suffixIcon: IconButton(
             icon: Icon(
               _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
@@ -332,31 +386,35 @@ class _SigninScreenState extends State<SigninScreen> {
           ),
           filled: true,
           fillColor: Colors.white.withOpacity(0.15),
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white30, width: 1),
+            borderSide: const BorderSide(color: Colors.white30, width: 1),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white30, width: 1),
+            borderSide: const BorderSide(color: Colors.white30, width: 1),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.white, width: 2),
+            borderSide: const BorderSide(color: Colors.white, width: 2),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMainActionButton() {
+  Widget _buildMainActionButton(AuthController authController) {
     return SizedBox(
       height: 50,
       child: ElevatedButton(
-        onPressed: _isLoading ? null : (_isSignInMode ? _signIn : _signUp),
+        onPressed:
+            authController.isLoading ? null : () => _handleAuth(authController),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFF2196F3),
+          backgroundColor: const Color(0xFF2196F3),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -364,8 +422,8 @@ class _SigninScreenState extends State<SigninScreen> {
           elevation: 3,
         ),
         child:
-            _isLoading
-                ? SizedBox(
+            authController.isLoading
+                ? const SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
@@ -375,115 +433,62 @@ class _SigninScreenState extends State<SigninScreen> {
                 )
                 : Text(
                   _isSignInMode ? 'Sign In' : 'Create Account',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
       ),
     );
   }
 
-  void _signIn() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      _showSnackBar('Vui lòng điền đầy đủ email và mật khẩu.');
+  void _handleAuth(AuthController authController) async {
+    final email = _emailController.text;
+    final password = _passwordController.text;
+    final name = _nameController.text;
+
+    if (email.isEmpty || password.isEmpty || (!_isSignInMode && name.isEmpty)) {
+      authController.setErrorMessage('Vui lòng điền đầy đủ thông tin.');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (!_isValidEmail(email)) {
+      authController.setErrorMessage('Vui lòng nhập địa chỉ email hợp lệ.');
+      return;
+    }
 
-    try {
-      DatabaseHelper dbHelper = DatabaseHelper();
+    if (password.length < 6) {
+      authController.setErrorMessage('Mật khẩu phải có ít nhất 6 ký tự.');
+      return;
+    }
 
-      // SỬ DỤNG getUserByEmailAndPassword để trả về đối tượng User
-      User? user = await dbHelper.getUserByEmailAndPassword(
-        _emailController.text,
-        _passwordController.text,
+    User? user;
+    if (_isSignInMode) {
+      user = await authController.signIn(email, password);
+    } else {
+      user = await authController.signUp(name, email, password);
+    }
+
+    if (user != null) {
+      _showSnackBar(
+        _isSignInMode
+            ? 'Chào mừng trở lại!'
+            : 'Tài khoản đã được tạo thành công!',
       );
-
-      if (user != null) {
-        _showSnackBar('Chào mừng trở lại!');
-
-        // Điều hướng đến home screen VỚI ĐỐI TƯỢNG USER
-        Future.delayed(Duration(milliseconds: 500), () {
-          Navigator.pushReplacementNamed(
-            context,
-            '/home',
-            arguments: user, // TRUYỀN ĐỐI TƯỢNG USER ĐÃ LẤY ĐƯỢC
-          );
-        });
-      } else {
-        _showSnackBar('Email hoặc mật khẩu không hợp lệ.');
-      }
-    } catch (e) {
-      _showSnackBar('Lỗi khi đăng nhập: $e');
-      print('Lỗi đăng nhập: $e'); // In lỗi ra console để debug
-    } finally {
-      setState(() {
-        _isLoading = false;
+      // Điều hướng đến home screen VỚI ĐỐI TƯỢNG USER
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.pushReplacementNamed(
+          context,
+          '/home',
+          arguments: user, // TRUYỀN ĐỐI TƯỢNG USER ĐÃ LẤY ĐƯỢC
+        );
       });
-    }
-  }
-
-  void _signUp() async {
-    if (_nameController.text.isEmpty ||
-        _emailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-      _showSnackBar('Vui lòng điền đầy đủ tất cả các trường.');
-      return;
-    }
-
-    if (!_isValidEmail(_emailController.text)) {
-      _showSnackBar('Vui lòng nhập địa chỉ email hợp lệ.');
-      return;
-    }
-
-    if (_passwordController.text.length < 6) {
-      _showSnackBar('Mật khẩu phải có ít nhất 6 ký tự.');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      DatabaseHelper dbHelper = DatabaseHelper();
-
-      // Kiểm tra xem email đã tồn tại chưa
-      bool emailExists = await dbHelper.checkEmailExists(_emailController.text);
-      if (emailExists) {
-        _showSnackBar('Email đã tồn tại.');
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Tạo đối tượng User mới
-      User newUser = User(
-        name: _nameController.text,
-        email: _emailController.text,
-        password: _passwordController.text, // Trong thực tế: HASH mật khẩu này!
-        createdAt: DateTime.now().toIso8601String(),
-        profileImageUrl: null, // Mặc định là null khi đăng ký
+    } else {
+      // Lỗi đã được AuthController xử lý và set errorMessage
+      // SnackBar sẽ hiển thị thông báo lỗi từ AuthController
+      _showSnackBar(
+        authController.errorMessage ?? 'Đã xảy ra lỗi không xác định.',
       );
-
-      // Chèn đối tượng User vào database
-      await dbHelper.insertUser(newUser);
-      _showSnackBar('Tài khoản đã được tạo thành công!');
-
-      // Chuyển sang chế độ đăng nhập
-      setState(() {
-        _isSignInMode = true;
-        _clearForm();
-      });
-    } catch (e) {
-      _showSnackBar('Lỗi khi tạo tài khoản: $e');
-      print('Lỗi tạo tài khoản: $e'); // In lỗi ra console để debug
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -494,24 +499,24 @@ class _SigninScreenState extends State<SigninScreen> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text(
+            title: const Text(
               'Đặt lại mật khẩu',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
+                const Text(
                   'Nhập địa chỉ email của bạn để nhận mã đặt lại.',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: Colors.grey),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 TextField(
                   controller: resetEmailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     hintText: 'Địa chỉ Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                    prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -522,7 +527,7 @@ class _SigninScreenState extends State<SigninScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Hủy'),
+                child: const Text('Hủy'),
               ),
               ElevatedButton(
                 onPressed: () async {
@@ -536,12 +541,31 @@ class _SigninScreenState extends State<SigninScreen> {
                   }
 
                   Navigator.pop(context);
-                  await _requestPasswordReset(resetEmailController.text);
+                  // Gọi phương thức forgotPassword từ AuthController
+                  final authController = Provider.of<AuthController>(
+                    context,
+                    listen: false,
+                  );
+                  String? resetToken = await authController.forgotPassword(
+                    resetEmailController.text,
+                  );
+
+                  if (resetToken != null) {
+                    _showSnackBar(
+                      'Mã đặt lại đã được gửi! Kiểm tra thông báo của bạn.',
+                    );
+                    _showResetCodeDialog(resetToken, resetEmailController.text);
+                  } else {
+                    _showSnackBar(
+                      authController.errorMessage ??
+                          'Không tìm thấy địa chỉ email hoặc lỗi.',
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF5CBDD9),
+                  backgroundColor: const Color(0xFF5CBDD9),
                 ),
-                child: Text(
+                child: const Text(
                   'Gửi mã đặt lại',
                   style: TextStyle(color: Colors.white),
                 ),
@@ -551,25 +575,6 @@ class _SigninScreenState extends State<SigninScreen> {
     );
   }
 
-  Future<void> _requestPasswordReset(String email) async {
-    try {
-      DatabaseHelper dbHelper = DatabaseHelper();
-      String? resetToken = await dbHelper.createResetToken(email);
-
-      if (resetToken != null) {
-        _showSnackBar('Mã đặt lại đã được gửi! Kiểm tra thông báo của bạn.');
-
-        // Hiển thị mã reset (trong thực tế, mã này sẽ được gửi qua email/SMS)
-        _showResetCodeDialog(resetToken, email);
-      } else {
-        _showSnackBar('Không tìm thấy địa chỉ email.');
-      }
-    } catch (e) {
-      _showSnackBar('Lỗi khi gửi mã đặt lại: $e');
-      print('Lỗi gửi mã đặt lại: $e');
-    }
-  }
-
   void _showResetCodeDialog(String resetCode, String email) {
     final codeController = TextEditingController();
     final newPasswordController = TextEditingController();
@@ -577,8 +582,7 @@ class _SigninScreenState extends State<SigninScreen> {
     bool isNewPasswordVisible = false;
     bool isConfirmPasswordVisible = false;
 
-    // Hiển thị mã reset trong console/debug (chỉ để test)
-    print('Mã đặt lại cho $email: $resetCode');
+    print('Mã đặt lại cho $email: $resetCode'); // Chỉ để debug
 
     showDialog(
       context: context,
@@ -587,7 +591,7 @@ class _SigninScreenState extends State<SigninScreen> {
           (context) => StatefulBuilder(
             builder:
                 (context, setState) => AlertDialog(
-                  title: Text(
+                  title: const Text(
                     'Nhập mã đặt lại',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -596,7 +600,7 @@ class _SigninScreenState extends State<SigninScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.blue[50],
                             borderRadius: BorderRadius.circular(8),
@@ -604,8 +608,12 @@ class _SigninScreenState extends State<SigninScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.info, color: Colors.blue, size: 20),
-                              SizedBox(width: 8),
+                              const Icon(
+                                Icons.info,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'Mã đặt lại: $resetCode\n(Có hiệu lực trong 15 phút)',
@@ -619,25 +627,25 @@ class _SigninScreenState extends State<SigninScreen> {
                             ],
                           ),
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         TextField(
                           controller: codeController,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             hintText: 'Nhập mã 6 chữ số',
-                            prefixIcon: Icon(Icons.security),
+                            prefixIcon: const Icon(Icons.security),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         TextField(
                           controller: newPasswordController,
                           obscureText: !isNewPasswordVisible,
                           decoration: InputDecoration(
                             hintText: 'Mật khẩu mới',
-                            prefixIcon: Icon(Icons.lock_outline),
+                            prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 isNewPasswordVisible
@@ -655,13 +663,13 @@ class _SigninScreenState extends State<SigninScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         TextField(
                           controller: confirmPasswordController,
                           obscureText: !isConfirmPasswordVisible,
                           decoration: InputDecoration(
                             hintText: 'Xác nhận mật khẩu',
-                            prefixIcon: Icon(Icons.lock_outline),
+                            prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 isConfirmPasswordVisible
@@ -686,22 +694,38 @@ class _SigninScreenState extends State<SigninScreen> {
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: Text('Hủy'),
+                      child: const Text('Hủy'),
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        await _resetPassword(
+                        // Gọi phương thức resetPassword từ AuthController
+                        final authController = Provider.of<AuthController>(
+                          context,
+                          listen: false,
+                        );
+                        bool success = await authController.resetPassword(
                           email,
                           codeController.text,
                           newPasswordController.text,
                           confirmPasswordController.text,
                         );
                         Navigator.pop(context); // Đóng dialog sau khi xử lý
+                        if (success) {
+                          _showSnackBar(
+                            'Mật khẩu đã được đặt lại thành công! Bây giờ bạn có thể đăng nhập.',
+                          );
+                          _clearForm();
+                        } else {
+                          _showSnackBar(
+                            authController.errorMessage ??
+                                'Mã đặt lại không hợp lệ hoặc đã hết hạn.',
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF5CBDD9),
+                        backgroundColor: const Color(0xFF5CBDD9),
                       ),
-                      child: Text(
+                      child: const Text(
                         'Đặt lại mật khẩu',
                         style: TextStyle(color: Colors.white),
                       ),
@@ -710,45 +734,6 @@ class _SigninScreenState extends State<SigninScreen> {
                 ),
           ),
     );
-  }
-
-  Future<void> _resetPassword(
-    String email,
-    String code,
-    String newPassword,
-    String confirmPassword,
-  ) async {
-    if (code.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
-      _showSnackBar('Vui lòng điền đầy đủ tất cả các trường.');
-      return;
-    }
-
-    if (newPassword != confirmPassword) {
-      _showSnackBar('Mật khẩu không khớp.');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      _showSnackBar('Mật khẩu phải có ít nhất 6 ký tự.');
-      return;
-    }
-
-    try {
-      DatabaseHelper dbHelper = DatabaseHelper();
-      bool success = await dbHelper.resetPassword(email, code, newPassword);
-
-      if (success) {
-        _showSnackBar(
-          'Mật khẩu đã được đặt lại thành công! Bây giờ bạn có thể đăng nhập.',
-        );
-        _clearForm();
-      } else {
-        _showSnackBar('Mã đặt lại không hợp lệ hoặc đã hết hạn.');
-      }
-    } catch (e) {
-      _showSnackBar('Lỗi khi đặt lại mật khẩu: $e');
-      print('Lỗi đặt lại mật khẩu: $e');
-    }
   }
 
   void _clearForm() {
@@ -770,17 +755,5 @@ class _SigninScreenState extends State<SigninScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
-  }
-
-  void _showFeatureNotAvailable() {
-    _showSnackBar('Tính năng này sẽ sớm khả dụng');
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _nameController.dispose();
-    super.dispose();
   }
 }
