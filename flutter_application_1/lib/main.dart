@@ -48,11 +48,9 @@ void main() {
         ChangeNotifierProvider(
           create: (context) => SecurityController(dbHelper),
         ),
-        // Cung cấp CategoryController
         ChangeNotifierProvider(
           create: (context) => CategoryController(dbHelper),
         ),
-        // Thêm các Controller khác ở đây
       ],
       child: const MyApp(),
     ),
