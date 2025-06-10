@@ -32,19 +32,21 @@ dependencies:
     sdk: flutter
   sqflite: ^2.3.0
   path: ^1.8.3
-
+  path_provider: ^2.1.2
+  image_picker: ^1.0.7
   # Quản lý trạng thái (State Management)
   provider: ^6.1.1
-
   # Định dạng ngày, giờ, số, tiền tệ
   intl: ^0.20.2
   equatable: ^2.0.5
+  cupertino_icons: ^1.0.8
   flutter_localizations:
     sdk: flutter
+   
+  
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
@@ -69,9 +71,9 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/images/facebook_logo.png
+    - assets/images/google_logo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

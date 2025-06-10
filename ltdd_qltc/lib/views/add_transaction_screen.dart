@@ -282,7 +282,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             .where((cat) => cat.type == _selectedType)
             .toList();
 
-        // SỬA LỖI: Kiểm tra xem giá trị hiện tại có trong danh sách không
         Category? currentSelection = _selectedCategory;
         if (currentSelection != null &&
             !categories.contains(currentSelection)) {
@@ -312,10 +311,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           onChanged: (Category? newValue) {
             setState(() => _selectedCategory = newValue);
           },
+          // SỬA LỖI: Cập nhật items để hiển thị icon
           items: categories.map((Category category) {
             return DropdownMenuItem<Category>(
               value: category,
-              child: Text(category.name),
+              child: Row(
+                children: [
+                  Text(
+                    category.icon ?? '📁',
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(category.name),
+                ],
+              ),
             );
           }).toList(),
         );
@@ -326,7 +335,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildAccountDropdown() {
     return Consumer<AccountController>(
       builder: (context, controller, child) {
-        // SỬA LỖI: Kiểm tra xem giá trị hiện tại có trong danh sách không
         Account? currentSelection = _selectedAccount;
         if (currentSelection != null &&
             !controller.accounts.contains(currentSelection)) {

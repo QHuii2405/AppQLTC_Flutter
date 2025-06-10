@@ -1,12 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+
 import 'package:ltdd_qltc/models/user.dart';
 import 'package:ltdd_qltc/controllers/auth_controller.dart';
 import 'package:ltdd_qltc/controllers/home_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
-  // Đã xóa: final User user;
   const ProfileScreen({super.key});
 
   @override
@@ -19,10 +23,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _descriptionController = TextEditingController();
   bool _isEditing = false;
 
+  // Biến để lưu đường dẫn ảnh mới (nếu có)
+  String? _newImagePath;
+
   @override
   void initState() {
     super.initState();
-    // Khởi tạo dữ liệu từ AuthController
     final authController = Provider.of<AuthController>(context, listen: false);
     if (authController.currentUser != null) {
       _updateTextFields(authController.currentUser!);
@@ -50,6 +56,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // Hàm chọn ảnh từ thư viện
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    // Chọn ảnh từ thư viện
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      // Lấy thư mục để lưu trữ file
+      final directory = await getApplicationDocumentsDirectory();
+      // Tạo một tên file duy nhất
+      final String fileName = p.basename(image.path);
+      final String savedImagePath = p.join(directory.path, fileName);
+
+      // Sao chép file ảnh đã chọn vào thư mục của ứng dụng
+      final File imageFile = File(image.path);
+      await imageFile.copy(savedImagePath);
+
+      // Lưu đường dẫn ảnh mới vào state để hiển thị tạm thời
+      setState(() {
+        _newImagePath = savedImagePath;
+      });
+    }
+  }
+
   Future<void> _saveProfile() async {
     final authController = Provider.of<AuthController>(context, listen: false);
     final homeController = Provider.of<HomeController>(context, listen: false);
@@ -63,16 +93,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       name: _nameController.text.trim(),
       dob: _dobController.text.trim(),
       description: _descriptionController.text.trim(),
+      // Cập nhật đường dẫn ảnh mới nếu có
+      profileImageUrl:
+          _newImagePath ?? authController.currentUser!.profileImageUrl,
     );
 
     bool success = await authController.updateUserProfile(updatedUser);
 
     if (mounted) {
       if (success) {
-        // Cập nhật lại HomeController với thông tin User mới nhất từ AuthController
         homeController.updateCurrentUser(authController.currentUser!);
         setState(() {
           _isEditing = false;
+          _newImagePath = null; // Reset sau khi lưu thành công
         });
         _showSnackBar('Cập nhật hồ sơ thành công!');
       } else {
@@ -83,7 +116,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Luôn lấy dữ liệu mới nhất từ AuthController để xây dựng UI
     return Consumer<AuthController>(
       builder: (context, authController, child) {
         final currentUser = authController.currentUser;
@@ -164,17 +196,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileAvatar(User user) {
+    // Xác định ảnh để hiển thị: ảnh mới > ảnh cũ > icon mặc định
+    ImageProvider? backgroundImage;
+    if (_newImagePath != null) {
+      backgroundImage = FileImage(File(_newImagePath!));
+    } else if (user.profileImageUrl != null &&
+        user.profileImageUrl!.isNotEmpty) {
+      // Giả sử đường dẫn lưu trong DB là đường dẫn file cục bộ
+      backgroundImage = FileImage(File(user.profileImageUrl!));
+    }
+
     return Center(
       child: Stack(
         children: [
           CircleAvatar(
             radius: 60,
             backgroundColor: Colors.white.withOpacity(0.3),
-            backgroundImage:
-                user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
-                ? NetworkImage(user.profileImageUrl!)
-                : null,
-            child: user.profileImageUrl == null || user.profileImageUrl!.isEmpty
+            backgroundImage: backgroundImage,
+            child: backgroundImage == null
                 ? const Icon(Icons.person, size: 60, color: Colors.white)
                 : null,
           ),
@@ -191,11 +230,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Colors.white,
                     size: 20,
                   ),
-                  onPressed: () {
-                    _showSnackBar(
-                      "Tính năng thay đổi ảnh đại diện đang được phát triển.",
-                    );
-                  },
+                  onPressed: _pickImage, // Gọi hàm chọn ảnh
                 ),
               ),
             ),

@@ -1,3 +1,4 @@
+import 'dart:io'; // THÊM IMPORT NÀY
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ltdd_qltc/models/user.dart';
@@ -144,9 +145,10 @@ class SettingsScreen extends StatelessWidget {
           CircleAvatar(
             radius: 30,
             backgroundColor: Colors.white.withOpacity(0.3),
+            // SỬA LỖI: Sử dụng FileImage thay vì NetworkImage
             backgroundImage:
                 user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
-                ? NetworkImage(user.profileImageUrl!)
+                ? FileImage(File(user.profileImageUrl!))
                 : null,
             child: user.profileImageUrl == null || user.profileImageUrl!.isEmpty
                 ? const Icon(Icons.person, size: 30, color: Colors.white)

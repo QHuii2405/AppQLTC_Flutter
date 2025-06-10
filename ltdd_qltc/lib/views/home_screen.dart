@@ -1,13 +1,18 @@
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'package:ltdd_qltc/controllers/account_controller.dart';
 import 'package:ltdd_qltc/controllers/auth_controller.dart';
+import 'package:ltdd_qltc/controllers/category_controller.dart';
 import 'package:ltdd_qltc/controllers/home_controller.dart';
+import 'package:ltdd_qltc/controllers/transaction_controller.dart';
 import 'package:ltdd_qltc/models/transaction.dart';
 import 'package:ltdd_qltc/models/user.dart';
+import 'package:ltdd_qltc/views/profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
-import 'dart:ui' as ui;
 
 // Import các màn hình con
 import 'package:ltdd_qltc/views/wallets_screen.dart';
@@ -25,6 +30,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   late PageController _pageController;
+
   final List<Widget> _screenOptions = [
     const HomeContent(),
     const WalletsScreen(),
@@ -52,6 +58,18 @@ class _HomeScreenState extends State<HomeScreen> {
         context,
         listen: false,
       ).loadHomeData(user.id!);
+      await Provider.of<TransactionController>(
+        context,
+        listen: false,
+      ).loadTransactions(user.id!);
+      await Provider.of<AccountController>(
+        context,
+        listen: false,
+      ).loadAccounts(user.id!);
+      await Provider.of<CategoryController>(
+        context,
+        listen: false,
+      ).loadCategories(user.id!);
     } else {
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(context, '/signin', (route) => false);
@@ -178,78 +196,6 @@ class _HomeScreenState extends State<HomeScreen> {
 class HomeContent extends StatelessWidget {
   const HomeContent({super.key});
 
-  void _showProfileMenu(BuildContext context, User? user) {
-    if (user == null) return;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 10),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text(
-                'Đăng xuất',
-                style: TextStyle(color: Colors.red),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _logout(context);
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _logout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Hủy'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Provider.of<AuthController>(context, listen: false).signOut();
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/signin',
-                (route) => false,
-              );
-            },
-            child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<HomeController>(
@@ -282,7 +228,7 @@ class HomeContent extends StatelessWidget {
                             padding: EdgeInsets.zero,
                             children: [
                               _buildChart(controller),
-                              _buildTransactionsList(controller),
+                              _buildTransactionsList(context, controller),
                             ],
                           ),
                         ),
@@ -296,7 +242,6 @@ class HomeContent extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context, User? user) {
-    // Lấy thời gian hiện tại để hiển thị
     final currentTime = DateFormat('HH:mm').format(DateTime.now());
 
     return Padding(
@@ -329,14 +274,17 @@ class HomeContent extends StatelessWidget {
           Row(
             children: [
               GestureDetector(
-                onTap: () => _showProfileMenu(context, user),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                ),
                 child: CircleAvatar(
                   radius: 25,
                   backgroundColor: Colors.white.withOpacity(0.2),
                   backgroundImage:
                       user?.profileImageUrl != null &&
                           user!.profileImageUrl!.isNotEmpty
-                      ? NetworkImage(user.profileImageUrl!)
+                      ? FileImage(File(user.profileImageUrl!))
                       : null,
                   child:
                       user?.profileImageUrl == null ||
@@ -428,7 +376,10 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionsList(HomeController controller) {
+  Widget _buildTransactionsList(
+    BuildContext context,
+    HomeController controller,
+  ) {
     final groupedTransactions = controller.groupedTransactions;
     final sortedDates = groupedTransactions.keys.toList()
       ..sort(
@@ -484,7 +435,8 @@ class HomeContent extends StatelessWidget {
               ),
             ),
             ...dayTransactions.map(
-              (transaction) => _buildTransactionItem(transaction, controller),
+              (transaction) =>
+                  _buildTransactionItem(context, transaction, controller),
             ),
           ],
         );
@@ -493,6 +445,7 @@ class HomeContent extends StatelessWidget {
   }
 
   Widget _buildTransactionItem(
+    BuildContext context,
     Transaction transaction,
     HomeController controller,
   ) {
@@ -503,55 +456,160 @@ class HomeContent extends StatelessWidget {
       decimalDigits: 0,
     ).format(transaction.amount);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: Center(
-              child: Text(
-                transaction.categoryIcon ??
-                    controller.getCategoryIcon(transaction.categoryName ?? ''),
-                style: const TextStyle(fontSize: 24),
+    return InkWell(
+      onTap: () => _showTransactionDetails(context, transaction),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Center(
+                child: Text(
+                  transaction.categoryIcon ??
+                      controller.getCategoryIcon(
+                        transaction.categoryName ?? '',
+                      ),
+                  style: const TextStyle(fontSize: 24),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.categoryName ?? 'Không rõ',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    transaction.categoryName ?? 'Không rõ',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                Text(
-                  transaction.accountName ?? '',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
+                  Text(
+                    transaction.accountName ?? '',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            Text(
+              '${isIncome ? '+' : '-'} $formattedAmount',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: isIncome ? Colors.greenAccent : Colors.redAccent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTransactionDetails(BuildContext context, Transaction transaction) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 0.8,
+          builder: (_, controller) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.all(20),
+                children: [
+                  Text(
+                    'Chi tiết giao dịch',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  _buildDetailRow(
+                    'Loại giao dịch:',
+                    transaction.type == 'income' ? 'Thu nhập' : 'Chi tiêu',
+                    transaction.type == 'income' ? Colors.green : Colors.red,
+                  ),
+                  _buildDetailRow(
+                    'Số tiền:',
+                    NumberFormat.currency(
+                      locale: 'vi_VN',
+                      symbol: 'VND',
+                      decimalDigits: 0,
+                    ).format(transaction.amount),
+                  ),
+                  _buildDetailRow(
+                    'Danh mục:',
+                    transaction.categoryName ?? 'N/A',
+                  ),
+                  _buildDetailRow(
+                    'Tài khoản:',
+                    transaction.accountName ?? 'N/A',
+                  ),
+                  _buildDetailRow(
+                    'Ngày:',
+                    DateFormat(
+                      'dd/MM/yyyy',
+                    ).format(DateTime.parse(transaction.transactionDate)),
+                  ),
+                  _buildDetailRow(
+                    'Phương thức TT:',
+                    transaction.paymentMethod ?? 'N/A',
+                  ),
+                  _buildDetailRow(
+                    'Mô tả:',
+                    transaction.description != null &&
+                            transaction.description!.isNotEmpty
+                        ? transaction.description!
+                        : 'Không có',
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String title, String value, [Color? valueColor]) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
           Text(
-            '${isIncome ? '+' : '-'} $formattedAmount',
+            value,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: isIncome ? Colors.greenAccent : Colors.white,
+              color: valueColor,
             ),
+            textAlign: TextAlign.end,
           ),
         ],
       ),
@@ -590,23 +648,24 @@ class _ChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    const double leftPadding = 35.0;
+    final double drawingWidth = size.width - leftPadding;
     final double maxVal = _getMaxValue();
     const double verticalPadding = 20.0;
     final double drawingHeight = size.height - verticalPadding;
 
-    // Vẽ các đường kẻ ngang và nhãn trục Y
     final yLabels = _generateYLabels(maxVal);
     for (int i = 0; i < yLabels.length; i++) {
-      // SỬA LỖI: Đảo ngược tính toán tọa độ y
       final y = drawingHeight - (i / (yLabels.length - 1)) * drawingHeight;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), _gridPaint);
-      _drawText(canvas, yLabels[i], Offset(-35, y - 8));
+      canvas.drawLine(
+        Offset(leftPadding, y),
+        Offset(size.width, y),
+        _gridPaint,
+      );
+      _drawText(canvas, yLabels[i], Offset(0, y - 8));
     }
 
-    // Vẽ các nhãn trục X
-    _drawXAxisLabels(canvas, size);
-
-    // Vẽ đường thu nhập và chi tiêu
+    _drawXAxisLabels(canvas, size, leftPadding, drawingWidth);
     _drawLine(
       canvas,
       size,
@@ -614,6 +673,8 @@ class _ChartPainter extends CustomPainter {
       maxVal,
       drawingHeight,
       Colors.greenAccent,
+      leftPadding,
+      drawingWidth,
     );
     _drawLine(
       canvas,
@@ -622,6 +683,8 @@ class _ChartPainter extends CustomPainter {
       maxVal,
       drawingHeight,
       Colors.pinkAccent,
+      leftPadding,
+      drawingWidth,
     );
   }
 
@@ -632,65 +695,95 @@ class _ChartPainter extends CustomPainter {
     double maxVal,
     double drawingHeight,
     Color color,
+    double leftPadding,
+    double drawingWidth,
   ) {
     if (data.isEmpty || data.values.every((v) => v == 0) || maxVal == 0) return;
 
-    final paint = Paint()
+    final linePaint = Paint()
       ..color = color
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final path = Path();
-    final List<int> sortedMonths =
-        data.keys.where((k) => data.containsKey(k)).toList()..sort();
+    final fillPaint = Paint()
+      ..shader = ui.Gradient.linear(Offset(0, 0), Offset(0, drawingHeight), [
+        color.withOpacity(0.3),
+        color.withOpacity(0.0),
+      ]);
 
-    for (int i = 0; i < sortedMonths.length; i++) {
-      final month = sortedMonths[i];
+    final linePath = Path();
+    final fillPath = Path();
+
+    // Tìm tháng đầu tiên có dữ liệu để bắt đầu vẽ
+    int? firstMonthWithData;
+    for (int month = 1; month <= 12; month++) {
+      if ((data[month] ?? 0) > 0) {
+        firstMonthWithData = month;
+        break;
+      }
+    }
+    if (firstMonthWithData == null) return;
+
+    // Điểm bắt đầu của fill path
+    final firstX = leftPadding + (firstMonthWithData - 1) / 11.0 * drawingWidth;
+    fillPath.moveTo(firstX, drawingHeight);
+
+    Offset? lastPoint;
+
+    for (int month = firstMonthWithData; month <= 12; month++) {
       final value = data[month] ?? 0;
-
-      final x = (month - 1) / 11 * size.width;
-      // SỬA LỖI: Tính toán tọa độ y bị ngược
+      final x = leftPadding + (month - 1) / 11.0 * drawingWidth;
       final y = drawingHeight - (value / maxVal) * drawingHeight;
-      final point = Offset(x, y);
+      final currentPoint = Offset(x, y);
 
-      if (i == 0) {
-        path.moveTo(point.dx, point.dy);
+      if (lastPoint == null) {
+        linePath.moveTo(currentPoint.dx, currentPoint.dy);
+        fillPath.lineTo(currentPoint.dx, currentPoint.dy);
       } else {
-        final prevMonth = sortedMonths[i - 1];
-        final prevValue = data[prevMonth] ?? 0;
-        final prevX = (prevMonth - 1) / 11 * size.width;
-        final prevY = drawingHeight - (prevValue / maxVal) * drawingHeight;
-        final prevPoint = Offset(prevX, prevY);
-
-        final controlPoint1 = Offset(
-          prevPoint.dx + (point.dx - prevPoint.dx) / 2,
-          prevPoint.dy,
-        );
-        final controlPoint2 = Offset(
-          prevPoint.dx + (point.dx - prevPoint.dx) / 2,
-          point.dy,
-        );
-
-        path.cubicTo(
+        final prevX = lastPoint.dx;
+        final prevY = lastPoint.dy;
+        final controlPoint1 = Offset(prevX + (x - prevX) / 2, prevY);
+        final controlPoint2 = Offset(prevX + (x - prevX) / 2, y);
+        linePath.cubicTo(
           controlPoint1.dx,
           controlPoint1.dy,
           controlPoint2.dx,
           controlPoint2.dy,
-          point.dx,
-          point.dy,
+          x,
+          y,
+        );
+        fillPath.cubicTo(
+          controlPoint1.dx,
+          controlPoint1.dy,
+          controlPoint2.dx,
+          controlPoint2.dy,
+          x,
+          y,
         );
       }
+      lastPoint = currentPoint;
     }
 
-    canvas.drawPath(path, paint);
+    if (lastPoint != null) {
+      fillPath.lineTo(lastPoint.dx, drawingHeight);
+      fillPath.close();
+      canvas.drawPath(fillPath, fillPaint);
+    }
+
+    canvas.drawPath(linePath, linePaint);
   }
 
-  void _drawXAxisLabels(Canvas canvas, Size size) {
+  void _drawXAxisLabels(
+    Canvas canvas,
+    Size size,
+    double leftPadding,
+    double drawingWidth,
+  ) {
     for (int i = 1; i <= 6; i++) {
       final month = i * 2;
-      final x = (month - 1.5) / 11 * size.width;
-      _drawText(canvas, 'Tháng $month', Offset(x, size.height - 15));
+      final x = leftPadding + (month - 1) / 11.0 * drawingWidth;
+      _drawText(canvas, 'Tháng $month', Offset(x - 20, size.height - 15));
     }
   }
 
@@ -705,7 +798,7 @@ class _ChartPainter extends CustomPainter {
     if (maxVal < 1) return ['0'];
     final List<String> labels = [];
     final double step = maxVal / 4;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i <= 4; i++) {
       final value = i * step;
       if (value >= 1000000) {
         labels.add('${(value / 1000000).toStringAsFixed(0)}M');
