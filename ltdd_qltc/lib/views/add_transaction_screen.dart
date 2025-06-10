@@ -9,6 +9,25 @@ import 'package:ltdd_qltc/controllers/category_controller.dart';
 import 'package:ltdd_qltc/controllers/account_controller.dart';
 import 'package:ltdd_qltc/controllers/transaction_controller.dart';
 import 'package:ltdd_qltc/controllers/home_controller.dart';
+import 'package:ltdd_qltc/controllers/auth_controller.dart';
+
+class AddTransactionScreenWrapper extends StatelessWidget {
+  const AddTransactionScreenWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = Provider.of<AuthController>(
+      context,
+      listen: false,
+    ).currentUser;
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Lỗi: Người dùng không tồn tại.")),
+      );
+    }
+    return AddTransactionScreen(user: user);
+  }
+}
 
 class AddTransactionScreen extends StatefulWidget {
   final User user;
@@ -39,8 +58,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.user.id != null) {
-        Provider.of<CategoryController>(context, listen: false).loadCategories(widget.user.id!);
-        Provider.of<AccountController>(context, listen: false).loadAccounts(widget.user.id!);
+        Provider.of<CategoryController>(
+          context,
+          listen: false,
+        ).loadCategories(widget.user.id!);
+        Provider.of<AccountController>(
+          context,
+          listen: false,
+        ).loadAccounts(widget.user.id!);
       }
     });
   }
@@ -51,7 +76,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     _descriptionController.dispose();
     super.dispose();
   }
-  
+
   void _showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -67,7 +92,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Future<void> _addTransaction() async {
     if (!mounted) return;
 
-    final amountText = _amountController.text.trim().replaceAll(',', '');
+    final amountText = _amountController.text.trim().replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
     if (amountText.isEmpty) {
       _showSnackBar('Vui lòng nhập số tiền.');
       return;
@@ -85,13 +113,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _showSnackBar('Vui lòng chọn ví tiền.');
       return;
     }
-     if (_selectedType == 'expense' && amount > _selectedAccount!.balance) {
+    if (_selectedType == 'expense' && amount > _selectedAccount!.balance) {
       _showSnackBar('Số tiền chi tiêu vượt quá số dư trong ví.');
       return;
     }
 
-    final transactionController = Provider.of<TransactionController>(context, listen: false);
-    final accountController = Provider.of<AccountController>(context, listen: false);
+    final transactionController = Provider.of<TransactionController>(
+      context,
+      listen: false,
+    );
+    final accountController = Provider.of<AccountController>(
+      context,
+      listen: false,
+    );
     final homeController = Provider.of<HomeController>(context, listen: false);
 
     final newTransaction = app_transaction.Transaction(
@@ -106,7 +140,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       createdAt: DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now()),
     );
 
-    bool addSuccess = await transactionController.addTransaction(newTransaction);
+    bool addSuccess = await transactionController.addTransaction(
+      newTransaction,
+    );
     if (!mounted) return;
 
     if (addSuccess) {
@@ -116,16 +152,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
       final updatedAccount = _selectedAccount!.copyWith(balance: newBalance);
       await accountController.updateAccount(updatedAccount);
-      
-      homeController.loadHomeData(widget.user.id!);
+
+      await homeController.loadHomeData(widget.user.id!);
 
       _showSnackBar('Thêm giao dịch thành công!');
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
     } else {
-      _showSnackBar(transactionController.errorMessage ?? 'Thêm giao dịch thất bại.');
+      _showSnackBar(
+        transactionController.errorMessage ?? 'Thêm giao dịch thất bại.',
+      );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +175,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         centerTitle: true,
       ),
       body: Container(
-         decoration: const BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -173,7 +210,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('Thêm Giao Dịch', style: TextStyle(fontSize: 18)),
+                child: const Text(
+                  'Thêm Giao Dịch',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ],
           ),
@@ -193,7 +233,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         onPressed: (index) {
           setState(() {
             _selectedType = (index == 0) ? 'expense' : 'income';
-            _selectedCategory = null; // Reset category on type change
+            _selectedCategory = null;
           });
         },
         fillColor: const Color(0xFF2196F3),
@@ -241,24 +281,36 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         final categories = controller.categories
             .where((cat) => cat.type == _selectedType)
             .toList();
+
+        // SỬA LỖI: Kiểm tra xem giá trị hiện tại có trong danh sách không
+        Category? currentSelection = _selectedCategory;
+        if (currentSelection != null &&
+            !categories.contains(currentSelection)) {
+          currentSelection = null;
+        }
+
         return DropdownButtonFormField<Category>(
-          value: _selectedCategory,
-          hint: const Text('Chọn danh mục', style: TextStyle(color: Colors.white70)),
+          value: currentSelection,
+          hint: const Text(
+            'Chọn danh mục',
+            style: TextStyle(color: Colors.white70),
+          ),
           dropdownColor: const Color(0xFF4BAFCC),
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white.withOpacity(0.1),
-             prefixIcon: const Icon(Icons.category_outlined, color: Colors.white70),
+            prefixIcon: const Icon(
+              Icons.category_outlined,
+              color: Colors.white70,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
           ),
           onChanged: (Category? newValue) {
-            setState(() {
-              _selectedCategory = newValue;
-            });
+            setState(() => _selectedCategory = newValue);
           },
           items: categories.map((Category category) {
             return DropdownMenuItem<Category>(
@@ -274,24 +326,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildAccountDropdown() {
     return Consumer<AccountController>(
       builder: (context, controller, child) {
+        // SỬA LỖI: Kiểm tra xem giá trị hiện tại có trong danh sách không
+        Account? currentSelection = _selectedAccount;
+        if (currentSelection != null &&
+            !controller.accounts.contains(currentSelection)) {
+          currentSelection = null;
+        }
+
         return DropdownButtonFormField<Account>(
-          value: _selectedAccount,
-          hint: const Text('Chọn ví tiền', style: TextStyle(color: Colors.white70)),
+          value: currentSelection,
+          hint: const Text(
+            'Chọn ví tiền',
+            style: TextStyle(color: Colors.white70),
+          ),
           dropdownColor: const Color(0xFF4BAFCC),
           style: const TextStyle(color: Colors.white),
-           decoration: InputDecoration(
+          decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white.withOpacity(0.1),
-            prefixIcon: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white70),
+            prefixIcon: const Icon(
+              Icons.account_balance_wallet_outlined,
+              color: Colors.white70,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,
             ),
           ),
           onChanged: (Account? newValue) {
-            setState(() {
-              _selectedAccount = newValue;
-            });
+            setState(() => _selectedAccount = newValue);
           },
           items: controller.accounts.map((Account account) {
             return DropdownMenuItem<Account>(
@@ -312,7 +375,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       decoration: InputDecoration(
         labelText: 'Mô tả (tùy chọn)',
         labelStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: const Icon(Icons.description_outlined, color: Colors.white70),
+        prefixIcon: const Icon(
+          Icons.description_outlined,
+          color: Colors.white70,
+        ),
         filled: true,
         fillColor: Colors.white.withOpacity(0.1),
         border: OutlineInputBorder(
@@ -326,13 +392,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget _buildDatePicker() {
     return TextField(
       readOnly: true,
-      controller: TextEditingController(text: DateFormat('dd/MM/yyyy').format(_selectedDate)),
+      controller: TextEditingController(
+        text: DateFormat('dd/MM/yyyy').format(_selectedDate),
+      ),
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: 'Ngày giao dịch',
         labelStyle: const TextStyle(color: Colors.white70),
-        prefixIcon: const Icon(Icons.calendar_today_outlined, color: Colors.white70),
-         filled: true,
+        prefixIcon: const Icon(
+          Icons.calendar_today_outlined,
+          color: Colors.white70,
+        ),
+        filled: true,
         fillColor: Colors.white.withOpacity(0.1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -355,10 +426,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-   Widget _buildPaymentMethodDropdown() {
+  Widget _buildPaymentMethodDropdown() {
     return DropdownButtonFormField<String>(
       value: _selectedPaymentMethod,
-      hint: const Text('Phương thức thanh toán (tùy chọn)', style: TextStyle(color: Colors.white70)),
+      hint: const Text(
+        'Phương thức thanh toán (tùy chọn)',
+        style: TextStyle(color: Colors.white70),
+      ),
       dropdownColor: const Color(0xFF4BAFCC),
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
@@ -376,10 +450,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         });
       },
       items: _paymentMethods.map((String method) {
-        return DropdownMenuItem<String>(
-          value: method,
-          child: Text(method),
-        );
+        return DropdownMenuItem<String>(value: method, child: Text(method));
       }).toList(),
     );
   }

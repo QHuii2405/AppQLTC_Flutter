@@ -2,24 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ltdd_qltc/models/user.dart';
 import 'package:ltdd_qltc/controllers/auth_controller.dart';
-
-// Import các màn hình con
 import 'package:ltdd_qltc/views/profile_screen.dart';
 import 'package:ltdd_qltc/views/manage_accounts_screen.dart';
 import 'package:ltdd_qltc/views/manage_categories_screen.dart';
 import 'package:ltdd_qltc/views/change_password_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
-  final User user;
-  const SettingsScreen({super.key, required this.user});
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
 
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
+    final authController = Provider.of<AuthController>(context);
+    final user = authController.currentUser;
+
+    if (user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted)
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/signin',
+            (route) => false,
+          );
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -42,15 +49,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildCardContainer(
               child: Column(
                 children: [
-                  _buildUserInfoCard(widget.user),
+                  _buildUserInfoCard(user),
                   _buildSettingsTile(
                     icon: Icons.edit_outlined,
                     title: 'Chỉnh sửa hồ sơ',
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) => ProfileScreen(user: widget.user),
-                      ),
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
                     ),
                   ),
                 ],
@@ -66,8 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            ManageAccountsScreen(user: widget.user),
+                        builder: (_) => const ManageAccountsScreen(),
                       ),
                     ),
                   ),
@@ -78,8 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) =>
-                            ManageCategoriesScreen(user: widget.user),
+                        builder: (_) => const ManageCategoriesScreen(),
                       ),
                     ),
                   ),
@@ -94,8 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        ChangePasswordScreen(user: widget.user),
+                    builder: (_) => const ChangePasswordScreen(),
                   ),
                 ),
               ),

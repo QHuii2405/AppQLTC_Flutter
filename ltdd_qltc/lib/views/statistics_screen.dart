@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:ltdd_qltc/controllers/transaction_controller.dart';
-import 'package:ltdd_qltc/models/transaction.dart';
-import 'package:ltdd_qltc/models/user.dart';
 import 'package:provider/provider.dart';
 import 'dart:math';
 
+import 'package:ltdd_qltc/controllers/auth_controller.dart';
+import 'package:ltdd_qltc/controllers/transaction_controller.dart';
+import 'package:ltdd_qltc/models/transaction.dart';
+
 class StatisticsScreen extends StatefulWidget {
-  final User user;
-  const StatisticsScreen({super.key, required this.user});
+  const StatisticsScreen({super.key});
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -17,9 +17,8 @@ class StatisticsScreen extends StatefulWidget {
 class _StatisticsScreenState extends State<StatisticsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedPeriod = 'Tháng';
-  String _selectedYear = DateTime.now().year.toString();
   bool _isLoading = true;
+  String _selectedPeriod = 'Tháng'; // 'Tháng' hoặc 'Tuần'
 
   List<Transaction> _allTransactions = [];
 
@@ -34,11 +33,19 @@ class _StatisticsScreenState extends State<StatisticsScreen>
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+    final user = Provider.of<AuthController>(
+      context,
+      listen: false,
+    ).currentUser;
+    if (user == null || user.id == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     final transactionController = Provider.of<TransactionController>(
       context,
       listen: false,
     );
-    await transactionController.loadTransactions(widget.user.id!);
+    await transactionController.loadTransactions(user.id!);
     if (mounted) {
       setState(() {
         _allTransactions = transactionController.transactions;
@@ -106,10 +113,10 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       (sum, item) => sum + item.amount,
     );
 
-    // Data for Bar Chart
-    final barChartData = _prepareBarChartData(transactions);
+    final Map<String, double> barChartData = _selectedPeriod == 'Tháng'
+        ? _prepareMonthlyData(transactions)
+        : _prepareWeeklyData(transactions);
 
-    // Data for Pie Chart
     final pieChartData = _preparePieChartData(transactions);
 
     return SingleChildScrollView(
@@ -138,7 +145,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           ),
           const SizedBox(height: 24),
 
-          _buildSectionTitle('Thống kê chi tiêu theo tháng'),
+          _buildSectionHeader("Thống kê theo", _buildPeriodSelector()),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
@@ -151,7 +158,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           ),
           const SizedBox(height: 24),
 
-          _buildSectionTitle('So sánh các loại'),
+          _buildSectionHeader("So sánh các loại", null),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(16),
@@ -206,23 +213,62 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
+  Widget _buildSectionHeader(String title, Widget? action) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        if (action != null) action,
+      ],
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    return Container(
+      height: 25,
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ToggleButtons(
+        isSelected: [_selectedPeriod == 'Tuần', _selectedPeriod == 'Tháng'],
+
+        onPressed: (index) {
+          setState(() {
+            _selectedPeriod = (index == 0) ? 'Tuần' : 'Tháng';
+          });
+        },
+        color: Colors.white70,
+        selectedColor: Colors.white,
+        fillColor: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+        borderWidth: 0,
+        selectedBorderColor: Colors.white,
+        children: const [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Text('Tuần'),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Text('Tháng'),
+          ),
+        ],
       ),
     );
   }
 
-  Map<String, double> _prepareBarChartData(List<Transaction> transactions) {
-    final Map<int, double> monthlyTotals = {};
-    for (int i = 1; i <= 12; i++) {
-      monthlyTotals[i] = 0.0;
-    }
-
+  Map<String, double> _prepareMonthlyData(List<Transaction> transactions) {
+    final Map<int, double> monthlyTotals = {
+      for (var i = 1; i <= 12; i++) i: 0.0,
+    };
     final currentYear = DateTime.now().year;
 
     for (var transaction in transactions) {
@@ -238,9 +284,37 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     return monthlyTotals.map((key, value) => MapEntry('T$key', value));
   }
 
+  Map<String, double> _prepareWeeklyData(List<Transaction> transactions) {
+    final Map<String, double> weeklyTotals = {};
+    final now = DateTime.now();
+
+    for (int i = 3; i >= 0; i--) {
+      final startOfWeek = now.subtract(
+        Duration(days: now.weekday - 1 + (i * 7)),
+      );
+      final endOfWeek = startOfWeek.add(const Duration(days: 6));
+      final weekKey =
+          '${DateFormat('dd/MM').format(startOfWeek)}-${DateFormat('dd/MM').format(endOfWeek)}';
+
+      weeklyTotals[weekKey] = 0.0;
+
+      for (var transaction in transactions) {
+        final date = DateTime.tryParse(transaction.transactionDate);
+        if (date != null &&
+            !date.isBefore(startOfWeek) &&
+            date.isBefore(endOfWeek.add(const Duration(days: 1)))) {
+          weeklyTotals.update(weekKey, (value) => value + transaction.amount);
+        }
+      }
+    }
+    return weeklyTotals;
+  }
+
   Map<String, PieData> _preparePieChartData(List<Transaction> transactions) {
     final Map<String, double> categoryTotals = {};
-    double total = 0;
+    double total = transactions.fold(0.0, (sum, item) => sum + item.amount);
+
+    if (total == 0) return {};
 
     for (var transaction in transactions) {
       final categoryName = transaction.categoryName ?? 'Khác';
@@ -249,10 +323,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
         (value) => value + transaction.amount,
         ifAbsent: () => transaction.amount,
       );
-      total += transaction.amount;
     }
-
-    if (total == 0) return {};
 
     final List<Color> colors = [
       Colors.blue,
@@ -279,7 +350,12 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   }
 }
 
-// ----- Chart Widgets -----
+class PieData {
+  final double percentage;
+  final Color color;
+  PieData({required this.percentage, required this.color});
+}
+
 class BarChart extends StatelessWidget {
   final Map<String, double> data;
   const BarChart({super.key, required this.data});
@@ -289,48 +365,49 @@ class BarChart extends StatelessWidget {
     if (data.isEmpty || data.values.every((e) => e == 0)) {
       return const Center(
         child: Text(
-          'Không có dữ liệu cho năm nay',
+          'Không có dữ liệu trong khoảng thời gian này',
           style: TextStyle(color: Colors.white54),
         ),
       );
     }
     final maxValue = data.values.fold(0.0, (max, v) => v > max ? v : max);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: data.entries.map((entry) {
-        final barHeight = maxValue > 0 ? (entry.value / maxValue) * 200 : 0.0;
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Container(
-              width: 20,
-              height: barHeight < 0 ? 0 : barHeight,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.8),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double barWidth = (constraints.maxWidth / data.length) * 0.5;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: data.entries.map((entry) {
+            final barHeight = maxValue > 0
+                ? (entry.value / maxValue) * (constraints.maxHeight - 20)
+                : 0.0;
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Container(
+                  width: barWidth,
+                  height: barHeight,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(4),
+                      topRight: Radius.circular(4),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              entry.key,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ],
+                const SizedBox(height: 4),
+                Text(
+                  entry.key,
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+              ],
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
-}
-
-class PieData {
-  final double percentage;
-  final Color color;
-  PieData({required this.percentage, required this.color});
 }
 
 class DonutChart extends StatelessWidget {
@@ -363,7 +440,7 @@ class _DonutChartPainter extends CustomPainter {
     double totalPercentage = 0;
     final center = Offset(size.width / 2, size.height / 2);
     final radius = min(size.width / 2, size.height / 2);
-    final strokeWidth = 30.0;
+    const strokeWidth = 30.0;
     final rect = Rect.fromCircle(
       center: center,
       radius: radius - strokeWidth / 2,
@@ -371,7 +448,7 @@ class _DonutChartPainter extends CustomPainter {
 
     data.forEach((key, value) {
       final sweepAngle = (value.percentage / 100) * 2 * pi;
-      final startAngle = (totalPercentage / 100) * 2 * pi - pi / 2;
+      final startAngle = (totalPercentage / 100) * 2 * pi - (pi / 2);
 
       final paint = Paint()
         ..color = value.color
@@ -384,7 +461,5 @@ class _DonutChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

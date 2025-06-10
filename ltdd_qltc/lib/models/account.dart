@@ -1,12 +1,14 @@
-class Account {
-  int? id;
-  int userId;
-  String name;
-  double balance;
-  String currency;
-  String createdAt;
+import 'package:equatable/equatable.dart';
 
-  Account({
+class Account extends Equatable {
+  final int? id;
+  final int userId;
+  final String name;
+  final double balance;
+  final String currency;
+  final String createdAt;
+
+  const Account({
     this.id,
     required this.userId,
     required this.name,
@@ -15,12 +17,15 @@ class Account {
     required this.createdAt,
   });
 
+  // SỬA LỖI: Thêm props để Equatable biết cách so sánh
+  @override
+  List<Object?> get props => [id, userId, name, balance, currency, createdAt];
+
   factory Account.fromMap(Map<String, dynamic> map) {
     return Account(
       id: map['id'],
       userId: map['user_id'],
       name: map['name'],
-      // SỬA LỖI: Chuyển đổi tường minh sang double
       balance: (map['balance'] as num).toDouble(),
       currency: map['currency'],
       createdAt: map['created_at'],
@@ -47,9 +52,7 @@ class Account {
       'created_at': createdAt,
     };
   }
-}
 
-extension AccountCopyWith on Account {
   Account copyWith({
     int? id,
     int? userId,

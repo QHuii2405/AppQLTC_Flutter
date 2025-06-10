@@ -4,8 +4,7 @@ import 'package:ltdd_qltc/models/user.dart';
 import 'package:ltdd_qltc/controllers/auth_controller.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
-  final User user;
-  const ChangePasswordScreen({super.key, required this.user});
+  const ChangePasswordScreen({super.key});
 
   @override
   State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
@@ -37,10 +36,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Future<void> _changePassword() async {
     final authController = Provider.of<AuthController>(context, listen: false);
+    final user = authController.currentUser;
+    if (user == null) {
+      _showSnackBar("Lỗi: Người dùng không tồn tại.");
+      return;
+    }
+
     authController.clearErrorMessage();
 
     bool success = await authController.changePassword(
-      widget.user.id!,
+      user.id!,
       _currentPasswordController.text,
       _newPasswordController.text,
       _confirmNewPasswordController.text,
@@ -108,6 +113,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   onPressed: authController.isLoading ? null : _changePassword,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 50),
+                    backgroundColor: const Color(0xFF2196F3),
+                    foregroundColor: Colors.white,
                   ),
                   child: authController.isLoading
                       ? const CircularProgressIndicator(color: Colors.white)

@@ -1,12 +1,14 @@
-class Category {
-  int? id;
-  int userId;
-  String name;
-  String type; // 'income' or 'expense'
-  String? icon;
-  String createdAt;
+import 'package:equatable/equatable.dart';
 
-  Category({
+class Category extends Equatable {
+  final int? id;
+  final int userId;
+  final String name;
+  final String type; // 'income' or 'expense'
+  final String? icon;
+  final String createdAt;
+
+  const Category({
     this.id,
     required this.userId,
     required this.name,
@@ -14,6 +16,10 @@ class Category {
     this.icon,
     required this.createdAt,
   });
+
+  // SỬA LỖI: Thêm props để Equatable biết cách so sánh
+  @override
+  List<Object?> get props => [id, userId, name, type, icon, createdAt];
 
   factory Category.fromMap(Map<String, dynamic> map) {
     return Category(
@@ -46,9 +52,7 @@ class Category {
       'created_at': createdAt,
     };
   }
-}
 
-extension CategoryCopyWith on Category {
   Category copyWith({
     int? id,
     int? userId,

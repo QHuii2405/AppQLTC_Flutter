@@ -24,70 +24,37 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  String _currentTime = DateFormat('HH:mm').format(DateTime.now());
-  bool _dataLoaded = false;
-
   late PageController _pageController;
-  late List<Widget> _screenOptions;
+  final List<Widget> _screenOptions = [
+    const HomeContent(),
+    const WalletsScreen(),
+    const AddTransactionScreenWrapper(),
+    const StatisticsScreen(),
+    const SettingsScreen(),
+  ];
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
-    _screenOptions = [
-      _buildLoadingScreen(), // Placeholder
-      _buildLoadingScreen(),
-      _buildLoadingScreen(),
-      _buildLoadingScreen(),
-      _buildLoadingScreen(),
-    ];
 
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _currentTime = DateFormat('HH:mm').format(DateTime.now());
-        });
-      } else {
-        timer.cancel();
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
     });
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_dataLoaded) {
-      final args = ModalRoute.of(context)?.settings.arguments;
-      if (args != null && args is User) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final homeController = Provider.of<HomeController>(
-            context,
-            listen: false,
-          );
-          homeController.updateCurrentUser(args);
-          if (args.id != null) {
-            homeController.loadHomeData(args.id!).then((_) {
-              if (mounted) {
-                setState(() {
-                  _screenOptions = [
-                    _buildHomeContent(),
-                    WalletsScreen(user: args),
-                    AddTransactionScreen(user: args),
-                    StatisticsScreen(user: args),
-                    SettingsScreen(user: args),
-                  ];
-                  _dataLoaded = true;
-                });
-              }
-            });
-          } else {
-            Navigator.pushReplacementNamed(context, '/signin');
-          }
-        });
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          Navigator.pushReplacementNamed(context, '/signin');
-        });
+  Future<void> _loadInitialData() async {
+    final authController = Provider.of<AuthController>(context, listen: false);
+    final user = authController.currentUser;
+
+    if (user != null && user.id != null) {
+      await Provider.of<HomeController>(
+        context,
+        listen: false,
+      ).loadHomeData(user.id!);
+    } else {
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, '/signin', (route) => false);
       }
     }
   }
@@ -96,21 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  Widget _buildLoadingScreen() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
-        ),
-      ),
-      child: const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      ),
-    );
   }
 
   @override
@@ -131,9 +83,178 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHomeContent() {
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            if (index == 2) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AddTransactionScreenWrapper(),
+                ),
+              );
+            } else {
+              _pageController.jumpToPage(index);
+            }
+          },
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color(0xFF5CBDD9),
+          unselectedItemColor: Colors.grey[600],
+          showUnselectedLabels: true,
+          elevation: 0,
+          items: [
+            _buildNavItem(Icons.home_filled, 'Trang chủ', 0),
+            _buildNavItem(Icons.account_balance_wallet, 'Ví tiền', 1),
+            BottomNavigationBarItem(
+              icon: Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5CBDD9),
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF5CBDD9).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 28),
+              ),
+              label: '',
+            ),
+            _buildNavItem(Icons.pie_chart, 'Thống kê', 3),
+            _buildNavItem(Icons.settings, 'Cài đặt', 4),
+          ],
+        ),
+      ),
+    );
+  }
+
+  BottomNavigationBarItem _buildNavItem(
+    IconData icon,
+    String label,
+    int index,
+  ) {
+    return BottomNavigationBarItem(
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _currentIndex == index
+              ? const Color(0xFF5CBDD9).withOpacity(0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon),
+      ),
+      label: label,
+    );
+  }
+}
+
+class HomeContent extends StatelessWidget {
+  const HomeContent({super.key});
+
+  void _showProfileMenu(BuildContext context, User? user) {
+    if (user == null) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text(
+                'Đăng xuất',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _logout(context);
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _logout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Provider.of<AuthController>(context, listen: false).signOut();
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/signin',
+                (route) => false,
+              );
+            },
+            child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Consumer<HomeController>(
       builder: (context, controller, child) {
+        final user = controller.currentUser;
         return Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -145,21 +266,16 @@ class _HomeScreenState extends State<HomeScreen> {
           child: SafeArea(
             child: Column(
               children: [
-                _buildStatusBar(),
-                _buildHeader(controller.currentUser),
-                controller.isLoading
-                    ? const Expanded(
-                        child: Center(
+                _buildHeader(context, user),
+                Expanded(
+                  child: controller.isLoading
+                      ? const Center(
                           child: CircularProgressIndicator(color: Colors.white),
-                        ),
-                      )
-                    : Expanded(
-                        child: RefreshIndicator(
+                        )
+                      : RefreshIndicator(
                           onRefresh: () async {
-                            if (controller.currentUser?.id != null) {
-                              await controller.loadHomeData(
-                                controller.currentUser!.id!,
-                              );
+                            if (user?.id != null) {
+                              await controller.loadHomeData(user!.id!);
                             }
                           },
                           child: ListView(
@@ -170,7 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                      ),
+                ),
               ],
             ),
           ),
@@ -179,92 +295,76 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatusBar() {
+  Widget _buildHeader(BuildContext context, User? user) {
+    // Lấy thời gian hiện tại để hiển thị
+    final currentTime = DateFormat('HH:mm').format(DateTime.now());
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
-          Text(
-            _currentTime,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.signal_cellular_4_bar, color: Colors.white, size: 16),
-              SizedBox(width: 4),
-              Icon(Icons.wifi, color: Colors.white, size: 16),
-              SizedBox(width: 4),
-              Icon(Icons.battery_full, color: Colors.white, size: 16),
+              Text(
+                currentTime,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+              ),
+              const Row(
+                children: [
+                  Icon(
+                    Icons.signal_cellular_4_bar,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  SizedBox(width: 4),
+                  Icon(Icons.wifi, color: Colors.white, size: 16),
+                  SizedBox(width: 4),
+                  Icon(Icons.battery_full, color: Colors.white, size: 16),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(User? user) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => _showProfileMenu(user),
-            child: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25),
-                child:
-                    user?.profileImageUrl != null &&
-                        user!.profileImageUrl!.isNotEmpty
-                    ? Image.network(
-                        user.profileImageUrl!,
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 30,
-                          );
-                        },
-                      )
-                    : const Icon(Icons.person, color: Colors.white, size: 30),
-              ),
-            ),
-          ),
-          const SizedBox(width: 15),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 10),
+          Row(
             children: [
-              Text(
-                'Hi,',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
+              GestureDetector(
+                onTap: () => _showProfileMenu(context, user),
+                child: CircleAvatar(
+                  radius: 25,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  backgroundImage:
+                      user?.profileImageUrl != null &&
+                          user!.profileImageUrl!.isNotEmpty
+                      ? NetworkImage(user.profileImageUrl!)
+                      : null,
+                  child:
+                      user?.profileImageUrl == null ||
+                          user!.profileImageUrl!.isEmpty
+                      ? const Icon(Icons.person, color: Colors.white, size: 30)
+                      : null,
                 ),
               ),
-              Text(
-                user?.name ?? 'Người dùng',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+              const SizedBox(width: 15),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Hi,',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                  Text(
+                    user?.name ?? 'Người dùng',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -331,11 +431,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTransactionsList(HomeController controller) {
     final groupedTransactions = controller.groupedTransactions;
     final sortedDates = groupedTransactions.keys.toList()
-      ..sort((a, b) {
-        final dateA = DateFormat('dd/MM/yyyy').parse(a);
-        final dateB = DateFormat('dd/MM/yyyy').parse(b);
-        return dateB.compareTo(dateA);
-      });
+      ..sort(
+        (a, b) => DateFormat(
+          'dd/MM/yyyy',
+        ).parse(b).compareTo(DateFormat('dd/MM/yyyy').parse(a)),
+      );
 
     if (controller.transactions.isEmpty && !controller.isLoading) {
       return Container(
@@ -348,13 +448,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: sortedDates.length,
-      itemBuilder: (context, index) {
-        String date = sortedDates[index];
+    return Column(
+      children: sortedDates.map((date) {
         List<Transaction> dayTransactions = groupedTransactions[date]!;
         final parsedDate = DateFormat('dd/MM/yyyy').parse(date);
 
@@ -393,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         );
-      },
+      }).toList(),
     );
   }
 
@@ -462,175 +557,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildBottomNavigationBar() {
-    final user = Provider.of<HomeController>(
-      context,
-      listen: false,
-    ).currentUser;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            if (index == 2) {
-              if (user != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddTransactionScreen(user: user),
-                  ),
-                );
-              }
-            } else {
-              _pageController.jumpToPage(index);
-            }
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF5CBDD9),
-          unselectedItemColor: Colors.grey[600],
-          showUnselectedLabels: true,
-          elevation: 0,
-          items: [
-            _buildNavItem(Icons.home_filled, 'Trang chủ', 0),
-            _buildNavItem(Icons.account_balance_wallet, 'Ví tiền', 1),
-            BottomNavigationBarItem(
-              icon: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF5CBDD9),
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF5CBDD9).withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.add, color: Colors.white, size: 28),
-              ),
-              label: '',
-            ),
-            _buildNavItem(Icons.pie_chart, 'Thống kê', 3),
-            _buildNavItem(Icons.settings, 'Cài đặt', 4),
-          ],
-        ),
-      ),
-    );
-  }
-
-  BottomNavigationBarItem _buildNavItem(
-    IconData icon,
-    String label,
-    int index,
-  ) {
-    return BottomNavigationBarItem(
-      icon: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: _currentIndex == index
-              ? const Color(0xFF5CBDD9).withOpacity(0.1)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon),
-      ),
-      label: label,
-    );
-  }
-
-  void _showProfileMenu(User? user) {
-    if (user == null) return;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 10),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text(
-                'Đăng xuất',
-                style: TextStyle(color: Colors.red),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _logout();
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _logout() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Provider.of<AuthController>(context, listen: false).signOut();
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/signin',
-                (route) => false,
-              );
-            },
-            child: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class LineChart extends StatelessWidget {
@@ -665,21 +591,38 @@ class _ChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final double maxVal = _getMaxValue();
-    const double minVal = 0;
+    const double verticalPadding = 20.0;
+    final double drawingHeight = size.height - verticalPadding;
 
-    // Draw horizontal grid lines and labels
+    // Vẽ các đường kẻ ngang và nhãn trục Y
     final yLabels = _generateYLabels(maxVal);
     for (int i = 0; i < yLabels.length; i++) {
-      final y = size.height - (i / (yLabels.length - 1)) * size.height;
+      // SỬA LỖI: Đảo ngược tính toán tọa độ y
+      final y = drawingHeight - (i / (yLabels.length - 1)) * drawingHeight;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), _gridPaint);
       _drawText(canvas, yLabels[i], Offset(-35, y - 8));
     }
 
+    // Vẽ các nhãn trục X
     _drawXAxisLabels(canvas, size);
 
-    // Draw lines for income and expense
-    _drawLine(canvas, size, incomeData, maxVal, minVal, Colors.greenAccent);
-    _drawLine(canvas, size, expenseData, maxVal, minVal, Colors.pinkAccent);
+    // Vẽ đường thu nhập và chi tiêu
+    _drawLine(
+      canvas,
+      size,
+      incomeData,
+      maxVal,
+      drawingHeight,
+      Colors.greenAccent,
+    );
+    _drawLine(
+      canvas,
+      size,
+      expenseData,
+      maxVal,
+      drawingHeight,
+      Colors.pinkAccent,
+    );
   }
 
   void _drawLine(
@@ -687,10 +630,10 @@ class _ChartPainter extends CustomPainter {
     Size size,
     Map<int, double> data,
     double maxVal,
-    double minVal,
+    double drawingHeight,
     Color color,
   ) {
-    if (data.isEmpty || data.values.every((v) => v == 0)) return;
+    if (data.isEmpty || data.values.every((v) => v == 0) || maxVal == 0) return;
 
     final paint = Paint()
       ..color = color
@@ -699,18 +642,17 @@ class _ChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final path = Path();
-    final List<int> sortedMonths = data.keys.where((k) => data[k]! > 0).toList()
-      ..sort();
-    if (sortedMonths.isEmpty) return;
+    final List<int> sortedMonths =
+        data.keys.where((k) => data.containsKey(k)).toList()..sort();
 
     for (int i = 0; i < sortedMonths.length; i++) {
       final month = sortedMonths[i];
       final value = data[month] ?? 0;
 
       final x = (month - 1) / 11 * size.width;
-      final y =
-          size.height - ((value - minVal) / (maxVal - minVal)) * size.height;
-      final point = Offset(x, y.isNaN ? size.height : y);
+      // SỬA LỖI: Tính toán tọa độ y bị ngược
+      final y = drawingHeight - (value / maxVal) * drawingHeight;
+      final point = Offset(x, y);
 
       if (i == 0) {
         path.moveTo(point.dx, point.dy);
@@ -718,10 +660,8 @@ class _ChartPainter extends CustomPainter {
         final prevMonth = sortedMonths[i - 1];
         final prevValue = data[prevMonth] ?? 0;
         final prevX = (prevMonth - 1) / 11 * size.width;
-        final prevY =
-            size.height -
-            ((prevValue - minVal) / (maxVal - minVal)) * size.height;
-        final prevPoint = Offset(prevX, prevY.isNaN ? size.height : prevY);
+        final prevY = drawingHeight - (prevValue / maxVal) * drawingHeight;
+        final prevPoint = Offset(prevX, prevY);
 
         final controlPoint1 = Offset(
           prevPoint.dx + (point.dx - prevPoint.dx) / 2,
@@ -749,8 +689,8 @@ class _ChartPainter extends CustomPainter {
   void _drawXAxisLabels(Canvas canvas, Size size) {
     for (int i = 1; i <= 6; i++) {
       final month = i * 2;
-      final x = (month - 2) / 11 * size.width; // Adjusted for better centering
-      _drawText(canvas, 'Tháng ${month}', Offset(x, size.height + 5));
+      final x = (month - 1.5) / 11 * size.width;
+      _drawText(canvas, 'Tháng $month', Offset(x, size.height - 15));
     }
   }
 
@@ -762,8 +702,7 @@ class _ChartPainter extends CustomPainter {
   }
 
   List<String> _generateYLabels(double maxVal) {
-    if (maxVal <= 1) return ['0', '1'];
-
+    if (maxVal < 1) return ['0'];
     final List<String> labels = [];
     final double step = maxVal / 4;
     for (int i = 0; i < 5; i++) {
@@ -776,7 +715,7 @@ class _ChartPainter extends CustomPainter {
         labels.add(value.toStringAsFixed(0));
       }
     }
-    return labels.reversed.toList();
+    return labels;
   }
 
   void _drawText(Canvas canvas, String text, Offset offset) {
@@ -794,7 +733,5 @@ class _ChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

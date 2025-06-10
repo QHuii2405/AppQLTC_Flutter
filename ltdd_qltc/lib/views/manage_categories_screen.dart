@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ltdd_qltc/models/user.dart';
 import 'package:ltdd_qltc/models/category.dart';
 import 'package:ltdd_qltc/controllers/category_controller.dart';
+import 'package:ltdd_qltc/controllers/auth_controller.dart';
 import 'package:intl/intl.dart';
 
 class ManageCategoriesScreen extends StatefulWidget {
-  final User user;
-  const ManageCategoriesScreen({super.key, required this.user});
+  const ManageCategoriesScreen({super.key});
 
   @override
   State<ManageCategoriesScreen> createState() => _ManageCategoriesScreenState();
@@ -30,6 +29,37 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen>
     '💻',
     '📚',
     '🎉',
+    '💇',
+    '💡',
+    '💧',
+    '📞',
+    '⚽',
+    '🎥',
+    '🛒',
+    '👕',
+    '💊',
+    '🚌',
+    '🚆',
+    '🚲',
+    '⛽',
+    '🧑‍💻',
+    '🎮',
+    '🎤',
+    '🏞️',
+    '🎓',
+    '👶',
+    '🐾',
+    '⚙️',
+    '✨',
+    '🌱',
+    '💍',
+    '💼',
+    '📊',
+    '🛡️',
+    '🔔',
+    '🗑️',
+    '🔧',
+    '🔄',
   ];
 
   @override
@@ -37,13 +67,23 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.user.id != null) {
+      final user = Provider.of<AuthController>(
+        context,
+        listen: false,
+      ).currentUser;
+      if (user != null && user.id != null) {
         Provider.of<CategoryController>(
           context,
           listen: false,
-        ).loadCategories(widget.user.id!);
+        ).loadCategories(user.id!);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _showSnackBar(String message) {
@@ -59,6 +99,15 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen>
     String categoryType =
         category?.type ?? (_tabController.index == 0 ? 'expense' : 'income');
     final formKey = GlobalKey<FormState>();
+    final user = Provider.of<AuthController>(
+      context,
+      listen: false,
+    ).currentUser;
+
+    if (user == null) {
+      _showSnackBar("Lỗi: Người dùng không tồn tại.");
+      return;
+    }
 
     showDialog(
       context: context,
@@ -143,7 +192,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen>
                       bool success;
                       if (category == null) {
                         final newCategory = Category(
-                          userId: widget.user.id!,
+                          userId: user.id!,
                           name: nameController.text,
                           type: categoryType,
                           icon: selectedIcon,
@@ -191,127 +240,187 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen>
       appBar: AppBar(
         title: const Text('Quản lý Danh mục'),
         backgroundColor: const Color(0xFF5CBDD9),
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          indicatorColor: Colors.white,
+          indicatorWeight: 3.0,
+          indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
-            Tab(text: 'Chi tiêu'),
-            Tab(text: 'Thu nhập'),
+            Tab(text: 'CHI TIÊU'),
+            Tab(text: 'THU NHẬP'),
           ],
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
-          ),
-        ),
-        child: Consumer<CategoryController>(
-          builder: (context, controller, child) {
-            if (controller.isLoading)
-              return const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              );
-
-            final expenseCategories = controller.categories
-                .where((c) => c.type == 'expense')
-                .toList();
-            final incomeCategories = controller.categories
-                .where((c) => c.type == 'income')
-                .toList();
-
-            return TabBarView(
-              controller: _tabController,
-              children: [
-                _buildCategoryList(expenseCategories),
-                _buildCategoryList(incomeCategories),
-              ],
+      backgroundColor: const Color(0xFF5CBDD9),
+      body: Consumer<CategoryController>(
+        builder: (context, controller, child) {
+          if (controller.isLoading)
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.white),
             );
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCategoryDialog(),
-        backgroundColor: const Color(0xFF2196F3),
-        child: const Icon(Icons.add),
+
+          final expenseCategories = controller.categories
+              .where((c) => c.type == 'expense')
+              .toList();
+          final incomeCategories = controller.categories
+              .where((c) => c.type == 'income')
+              .toList();
+
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _buildCategoryGrid(expenseCategories),
+              _buildCategoryGrid(incomeCategories),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildCategoryList(List<Category> categories) {
-    if (categories.isEmpty) {
-      return const Center(
-        child: Text(
-          'Không có danh mục nào',
-          style: TextStyle(color: Colors.white70),
-        ),
-      );
-    }
-    return ListView.builder(
-      itemCount: categories.length,
+  Widget _buildCategoryGrid(List<Category> categories) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16.0),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1,
+      ),
+      // Thêm 1 item cho nút "Thêm"
+      itemCount: categories.length + 1,
       itemBuilder: (context, index) {
+        // Nếu là item cuối cùng, hiển thị nút "Thêm"
+        if (index == categories.length) {
+          return _buildAddCategoryCard();
+        }
+
         final category = categories[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          color: Colors.white.withOpacity(0.2),
-          child: ListTile(
-            leading: Text(
-              category.icon ?? '📁',
-              style: const TextStyle(fontSize: 24),
+        return _buildCategoryCard(category);
+      },
+    );
+  }
+
+  Widget _buildCategoryCard(Category category) {
+    return GestureDetector(
+      onLongPress: () => _showCategoryOptions(context, category),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
             ),
-            title: Text(
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(category.icon ?? '📁', style: const TextStyle(fontSize: 36)),
+            const SizedBox(height: 8),
+            Text(
               category.name,
-              style: const TextStyle(color: Colors.white),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.white),
-                  onPressed: () => _showCategoryDialog(category: category),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.redAccent),
-                  onPressed: () async {
-                    final controller = Provider.of<CategoryController>(
-                      context,
-                      listen: false,
-                    );
-                    bool? confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Xác nhận xóa'),
-                        content: Text(
-                          'Bạn có chắc muốn xóa danh mục "${category.name}" không?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Hủy'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Xóa'),
-                          ),
-                        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddCategoryCard() {
+    return GestureDetector(
+      onTap: () => _showCategoryDialog(),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add, color: Colors.white.withOpacity(0.8), size: 36),
+            const SizedBox(height: 8),
+            Text(
+              'Thêm',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCategoryOptions(BuildContext context, Category category) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Wrap(
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Chỉnh sửa'),
+              onTap: () {
+                Navigator.pop(context);
+                _showCategoryDialog(category: category);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Xóa', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context);
+                final controller = Provider.of<CategoryController>(
+                  context,
+                  listen: false,
+                );
+                bool? confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Xác nhận xóa'),
+                    content: Text(
+                      'Bạn có chắc muốn xóa danh mục "${category.name}" không?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Hủy'),
                       ),
-                    );
-                    if (confirm == true) {
-                      bool success = await controller.deleteCategory(
-                        category.id!,
-                      );
-                      _showSnackBar(
-                        success
-                            ? 'Xóa danh mục thành công'
-                            : controller.errorMessage ?? 'Xóa thất bại',
-                      );
-                    }
-                  },
-                ),
-              ],
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Xóa'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  bool success = await controller.deleteCategory(category.id!);
+                  _showSnackBar(
+                    success
+                        ? 'Xóa danh mục thành công'
+                        : controller.errorMessage ?? 'Xóa thất bại',
+                  );
+                }
+              },
             ),
-          ),
+          ],
         );
       },
     );

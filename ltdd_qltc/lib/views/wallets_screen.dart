@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:ltdd_qltc/controllers/account_controller.dart';
+import 'package:ltdd_qltc/controllers/auth_controller.dart';
 import 'package:ltdd_qltc/controllers/home_controller.dart';
 import 'package:ltdd_qltc/controllers/transaction_controller.dart';
 import 'package:ltdd_qltc/models/transaction.dart';
-import 'package:ltdd_qltc/models/user.dart';
-import 'package:provider/provider.dart';
 
 class WalletsScreen extends StatefulWidget {
-  final User user;
-  const WalletsScreen({super.key, required this.user});
+  const WalletsScreen({super.key});
 
   @override
   State<WalletsScreen> createState() => _WalletsScreenState();
@@ -25,15 +24,24 @@ class _WalletsScreenState extends State<WalletsScreen> {
   @override
   void initState() {
     super.initState();
+    // Sử dụng addPostFrameCallback để đảm bảo context đã sẵn sàng
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
   }
 
   Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    // Không cần setState ở đầu vì _isLoading đã là true
+    final user = Provider.of<AuthController>(
+      context,
+      listen: false,
+    ).currentUser;
+    if (user == null || user.id == null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
 
     final accountController = Provider.of<AccountController>(
       context,
@@ -44,10 +52,13 @@ class _WalletsScreenState extends State<WalletsScreen> {
       listen: false,
     );
 
-    await accountController.loadAccounts(widget.user.id!);
-    await transactionController.loadTransactions(widget.user.id!);
+    // Tải song song để tăng tốc độ
+    await Future.wait([
+      accountController.loadAccounts(user.id!),
+      transactionController.loadTransactions(user.id!),
+    ]);
 
-    // SỬA LỖI: Dùng 0.0 làm giá trị khởi tạo cho fold
+    // Tính toán sau khi dữ liệu đã được tải
     double balance = accountController.accounts.fold(
       0.0,
       (sum, item) => sum + item.balance,
@@ -58,13 +69,13 @@ class _WalletsScreenState extends State<WalletsScreen> {
 
     double income = 0.0;
     double expense = 0.0;
+
+    // Lọc giao dịch trong tháng hiện tại
     List<Transaction> transactionsThisMonth = transactionController.transactions
         .where((t) {
           final transactionDate = DateTime.tryParse(t.transactionDate);
           return transactionDate != null &&
-              transactionDate.isAfter(
-                firstDayOfMonth.subtract(const Duration(days: 1)),
-              );
+              !transactionDate.isBefore(firstDayOfMonth);
         })
         .toList();
 
@@ -76,6 +87,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
       }
     }
 
+    // Cập nhật state một lần duy nhất khi tất cả đã xong
     if (mounted) {
       setState(() {
         _totalBalance = balance;
@@ -91,13 +103,14 @@ class _WalletsScreenState extends State<WalletsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: false, // Ẩn nút back
         title: const Text(
           'Tài khoản của tôi',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         backgroundColor: const Color(0xFF5CBDD9),
+        elevation: 0,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -138,7 +151,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tài khoản của tôi',
+            'Tổng số dư',
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
               fontSize: 16,
@@ -159,17 +172,17 @@ class _WalletsScreenState extends State<WalletsScreen> {
           ),
           const SizedBox(height: 24),
           _buildProgressBar(
-            title: 'Thu nhập',
+            title: 'Thu nhập tháng này',
             amount: _monthlyIncome,
             total: _monthlyIncome + _monthlyExpense,
-            color: Colors.greenAccent,
+            color: const Color(0xFF34D399),
           ),
           const SizedBox(height: 16),
           _buildProgressBar(
-            title: 'Chi tiêu',
+            title: 'Chi tiêu tháng này',
             amount: _monthlyExpense,
             total: _monthlyIncome + _monthlyExpense,
-            color: Colors.pinkAccent,
+            color: const Color(0xFFF87171),
           ),
         ],
       ),
@@ -233,15 +246,16 @@ class _WalletsScreenState extends State<WalletsScreen> {
         ),
       );
     }
+    // Chỉ hiển thị 15 giao dịch gần nhất
+    final recentTransactions = _transactions.take(15).toList();
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: _transactions.length > 15
-          ? 15
-          : _transactions.length, // Show latest 15 transactions
+      itemCount: recentTransactions.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final transaction = _transactions[index];
+        final transaction = recentTransactions[index];
         final isIncome = transaction.type == 'income';
         final formattedAmount = NumberFormat.currency(
           locale: 'vi_VN',
@@ -288,7 +302,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                       ),
                     ),
                     Text(
-                      transaction.accountName ?? '',
+                      transaction.accountName ?? 'Ví không rõ',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withOpacity(0.8),
@@ -302,7 +316,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: isIncome ? Colors.greenAccent : Colors.white,
+                  color: isIncome
+                      ? const Color(0xFF34D399)
+                      : const Color(0xFFF87171),
                 ),
               ),
             ],

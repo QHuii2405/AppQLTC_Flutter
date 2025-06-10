@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:ltdd_qltc/models/user.dart';
+import 'package:provider/provider.dart';
+import 'package:ltdd_qltc/controllers/auth_controller.dart';
 
 class LoginHistoryScreen extends StatelessWidget {
-  final User user;
-  const LoginHistoryScreen({super.key, required this.user});
+  const LoginHistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<AuthController>(context).currentUser;
+
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Lỗi')),
+        body: const Center(child: Text('Không tìm thấy thông tin người dùng.')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lịch sử Đăng nhập'),

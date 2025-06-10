@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import 'package:ltdd_qltc/models/user.dart';
 import 'package:ltdd_qltc/models/account.dart';
 import 'package:ltdd_qltc/controllers/account_controller.dart';
+import 'package:ltdd_qltc/controllers/auth_controller.dart';
 
 class ManageAccountsScreen extends StatefulWidget {
-  final User user;
-  const ManageAccountsScreen({super.key, required this.user});
+  const ManageAccountsScreen({super.key});
 
   @override
   State<ManageAccountsScreen> createState() => _ManageAccountsScreenState();
@@ -17,12 +16,17 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
   @override
   void initState() {
     super.initState();
+    // Tải danh sách tài khoản ngay khi widget được khởi tạo
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.user.id != null) {
+      final user = Provider.of<AuthController>(
+        context,
+        listen: false,
+      ).currentUser;
+      if (user != null && user.id != null) {
         Provider.of<AccountController>(
           context,
           listen: false,
-        ).loadAccounts(widget.user.id!);
+        ).loadAccounts(user.id!);
       }
     });
   }
@@ -34,18 +38,26 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // Hiển thị dialog để thêm hoặc sửa tài khoản
   void _showAccountDialog({Account? account}) {
     final nameController = TextEditingController(text: account?.name);
-    final balanceController = TextEditingController(
-      text: account?.balance.toString() ?? '0.0',
-    );
+    // ĐÃ XÓA: balanceController đã bị loại bỏ
     final formKey = GlobalKey<FormState>();
+    final user = Provider.of<AuthController>(
+      context,
+      listen: false,
+    ).currentUser;
+
+    if (user == null) {
+      _showSnackBar("Lỗi: Người dùng không tồn tại.");
+      return;
+    }
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(account == null ? 'Thêm ví mới' : 'Sửa ví'),
+          title: Text(account == null ? 'Thêm ví mới' : 'Sửa tên ví'),
           content: Form(
             key: formKey,
             child: Column(
@@ -53,25 +65,15 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
               children: [
                 TextFormField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Tên ví'),
+                  decoration: const InputDecoration(
+                    labelText: 'Tên ví',
+                    hintText: 'Ví dụ: Tiền mặt, Ngân hàng...',
+                  ),
                   validator: (value) => value == null || value.isEmpty
                       ? 'Vui lòng nhập tên ví'
                       : null,
                 ),
-                TextFormField(
-                  controller: balanceController,
-                  decoration: const InputDecoration(labelText: 'Số dư ban đầu'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty)
-                      return 'Vui lòng nhập số dư';
-                    if (double.tryParse(value) == null)
-                      return 'Số dư không hợp lệ';
-                    return null;
-                  },
-                ),
+                // ĐÃ XÓA: TextFormField cho số dư đã bị loại bỏ
               ],
             ),
           ),
@@ -88,11 +90,14 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
                     listen: false,
                   );
                   bool success;
+
+                  // CHỈNH SỬA: Logic thêm và cập nhật
                   if (account == null) {
+                    // THÊM VÍ MỚI
                     final newAccount = Account(
-                      userId: widget.user.id!,
-                      name: nameController.text,
-                      balance: double.parse(balanceController.text),
+                      userId: user.id!,
+                      name: nameController.text.trim(),
+                      balance: 0.0, // Số dư mặc định là 0
                       currency: 'VND',
                       createdAt: DateFormat(
                         'yyyy-MM-dd HH:mm:ss',
@@ -100,9 +105,10 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
                     );
                     success = await controller.addAccount(newAccount);
                   } else {
+                    // CẬP NHẬT TÊN VÍ
                     final updatedAccount = account.copyWith(
-                      name: nameController.text,
-                      balance: double.parse(balanceController.text),
+                      name: nameController.text.trim(),
+                      // Không thay đổi số dư khi chỉnh sửa
                     );
                     success = await controller.updateAccount(updatedAccount);
                   }
@@ -152,8 +158,9 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
             if (controller.accounts.isEmpty) {
               return const Center(
                 child: Text(
-                  'Chưa có ví nào.',
-                  style: TextStyle(color: Colors.white70),
+                  'Chưa có ví nào.\nNhấn nút + để thêm mới.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
               );
             }
@@ -183,6 +190,7 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
                       NumberFormat.currency(
                         locale: 'vi_VN',
                         symbol: 'VND',
+                        decimalDigits: 0,
                       ).format(account.balance),
                       style: const TextStyle(color: Colors.white70),
                     ),
@@ -204,7 +212,7 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
                               builder: (context) => AlertDialog(
                                 title: const Text('Xác nhận xóa'),
                                 content: Text(
-                                  'Bạn có chắc muốn xóa ví "${account.name}"?',
+                                  'Bạn có chắc muốn xóa ví "${account.name}" không?\nTất cả giao dịch liên quan đến ví này sẽ bị xóa theo.',
                                 ),
                                 actions: [
                                   TextButton(
@@ -215,7 +223,10 @@ class _ManageAccountsScreenState extends State<ManageAccountsScreen> {
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, true),
-                                    child: const Text('Xóa'),
+                                    child: const Text(
+                                      'Xóa',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
                                   ),
                                 ],
                               ),

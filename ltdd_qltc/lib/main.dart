@@ -120,44 +120,38 @@ class MyApp extends StatelessWidget {
               return _errorRoute();
             case '/settings':
               if (args is User) {
-                return MaterialPageRoute(
-                  builder: (_) => SettingsScreen(user: args),
-                );
+                return MaterialPageRoute(builder: (_) => SettingsScreen());
               }
               return _errorRoute();
             case '/profile':
               if (args is User) {
-                return MaterialPageRoute(
-                  builder: (_) => ProfileScreen(user: args),
-                );
+                return MaterialPageRoute(builder: (_) => ProfileScreen());
               }
               return _errorRoute();
             case '/manage_accounts':
               if (args is User) {
                 return MaterialPageRoute(
-                  builder: (_) => ManageAccountsScreen(user: args),
+                  builder: (_) => ManageAccountsScreen(),
                 );
               }
               return _errorRoute();
             case '/manage_categories':
               if (args is User) {
                 return MaterialPageRoute(
-                  builder: (_) => ManageCategoriesScreen(user: args),
+                  builder: (_) => ManageCategoriesScreen(),
                 );
               }
               return _errorRoute();
             case '/change_password':
               if (args is User) {
                 return MaterialPageRoute(
-                  builder: (_) => ChangePasswordScreen(user: args),
+                  builder: (_) => ChangePasswordScreen(),
                 );
               }
               return _errorRoute();
             case '/login_history':
               if (args is User) {
-                return MaterialPageRoute(
-                  builder: (_) => LoginHistoryScreen(user: args),
-                );
+                return MaterialPageRoute(builder: (_) => LoginHistoryScreen());
               }
               return _errorRoute();
             default:

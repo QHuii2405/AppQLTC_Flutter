@@ -38,6 +38,7 @@ dependencies:
 
   # Định dạng ngày, giờ, số, tiền tệ
   intl: ^0.20.2
+  equatable: ^2.0.5
   flutter_localizations:
     sdk: flutter
 

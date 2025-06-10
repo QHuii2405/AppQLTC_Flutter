@@ -6,15 +6,14 @@ import 'package:ltdd_qltc/controllers/auth_controller.dart';
 import 'package:ltdd_qltc/controllers/home_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
-  final User user;
-  const ProfileScreen({super.key, required this.user});
+  // Đã xóa: final User user;
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late User _currentUser;
   final _nameController = TextEditingController();
   final _dobController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -23,10 +22,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _currentUser = widget.user;
-    _nameController.text = _currentUser.name;
-    _dobController.text = _currentUser.dob ?? '';
-    _descriptionController.text = _currentUser.description ?? '';
+    // Khởi tạo dữ liệu từ AuthController
+    final authController = Provider.of<AuthController>(context, listen: false);
+    if (authController.currentUser != null) {
+      _updateTextFields(authController.currentUser!);
+    }
+  }
+
+  void _updateTextFields(User user) {
+    _nameController.text = user.name;
+    _dobController.text = user.dob ?? '';
+    _descriptionController.text = user.description ?? '';
   }
 
   @override
@@ -45,25 +51,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    final updatedUser = _currentUser.copyWith(
+    final authController = Provider.of<AuthController>(context, listen: false);
+    final homeController = Provider.of<HomeController>(context, listen: false);
+
+    if (authController.currentUser == null) {
+      _showSnackBar("Không tìm thấy người dùng để cập nhật.");
+      return;
+    }
+
+    final updatedUser = authController.currentUser!.copyWith(
       name: _nameController.text.trim(),
       dob: _dobController.text.trim(),
       description: _descriptionController.text.trim(),
     );
 
-    final authController = Provider.of<AuthController>(context, listen: false);
     bool success = await authController.updateUserProfile(updatedUser);
 
     if (mounted) {
       if (success) {
+        // Cập nhật lại HomeController với thông tin User mới nhất từ AuthController
+        homeController.updateCurrentUser(authController.currentUser!);
         setState(() {
-          _currentUser = updatedUser;
           _isEditing = false;
         });
-        Provider.of<HomeController>(
-          context,
-          listen: false,
-        ).updateCurrentUser(updatedUser);
         _showSnackBar('Cập nhật hồ sơ thành công!');
       } else {
         _showSnackBar(authController.errorMessage ?? 'Cập nhật thất bại.');
@@ -73,122 +83,144 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hồ sơ của tôi'),
-        backgroundColor: const Color(0xFF5CBDD9),
-        actions: [
-          IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit),
-            onPressed: () {
-              if (_isEditing) {
-                _saveProfile();
-              } else {
-                setState(() {
-                  _isEditing = true;
-                });
-              }
-            },
+    // Luôn lấy dữ liệu mới nhất từ AuthController để xây dựng UI
+    return Consumer<AuthController>(
+      builder: (context, authController, child) {
+        final currentUser = authController.currentUser;
+
+        if (currentUser == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Lỗi')),
+            body: const Center(
+              child: Text('Không tìm thấy thông tin người dùng.'),
+            ),
+          );
+        }
+
+        if (!_isEditing) {
+          _updateTextFields(currentUser);
+        }
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Hồ sơ của tôi'),
+            backgroundColor: const Color(0xFF5CBDD9),
+            actions: [
+              IconButton(
+                icon: Icon(
+                  _isEditing ? Icons.save_alt_outlined : Icons.edit_outlined,
+                ),
+                onPressed: () {
+                  if (_isEditing) {
+                    _saveProfile();
+                  } else {
+                    setState(() {
+                      _isEditing = true;
+                    });
+                  }
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
-          ),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.white.withOpacity(0.3),
-                    backgroundImage:
-                        _currentUser.profileImageUrl != null &&
-                            _currentUser.profileImageUrl!.isNotEmpty
-                        ? NetworkImage(_currentUser.profileImageUrl!)
-                        : null,
-                    child:
-                        _currentUser.profileImageUrl == null ||
-                            _currentUser.profileImageUrl!.isEmpty
-                        ? const Icon(
-                            Icons.person,
-                            size: 60,
-                            color: Colors.white,
-                          )
-                        : null,
-                  ),
-                  if (_isEditing)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.blue,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            // Logic to change profile picture
-                          },
-                        ),
-                      ),
-                    ),
-                ],
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
               ),
             ),
-            const SizedBox(height: 24),
-            _buildProfileTextField(
-              controller: _nameController,
-              labelText: 'Tên hiển thị',
-              enabled: _isEditing,
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: [
+                _buildProfileAvatar(currentUser),
+                const SizedBox(height: 24),
+                _buildProfileTextField(
+                  controller: _nameController,
+                  labelText: 'Tên hiển thị',
+                  enabled: _isEditing,
+                ),
+                const SizedBox(height: 16),
+                _buildProfileTextField(
+                  controller: _dobController,
+                  labelText: 'Ngày sinh (dd/MM/yyyy)',
+                  enabled: _isEditing,
+                  readOnly: true,
+                  onTap: _isEditing ? () => _selectDate(context) : null,
+                ),
+                const SizedBox(height: 16),
+                _buildProfileTextField(
+                  controller: _descriptionController,
+                  labelText: 'Mô tả',
+                  enabled: _isEditing,
+                  maxLines: 3,
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _buildProfileTextField(
-              controller: _dobController,
-              labelText: 'Ngày sinh (dd/MM/yyyy)',
-              enabled: _isEditing,
-              readOnly: true,
-              onTap: _isEditing
-                  ? () async {
-                      DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate:
-                            DateTime.tryParse(
-                              _dobController.text.split('/').reversed.join('-'),
-                            ) ??
-                            DateTime.now(),
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) {
-                        _dobController.text = DateFormat(
-                          'dd/MM/yyyy',
-                        ).format(picked);
-                      }
-                    }
-                  : null,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileAvatar(User user) {
+    return Center(
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: Colors.white.withOpacity(0.3),
+            backgroundImage:
+                user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
+                ? NetworkImage(user.profileImageUrl!)
+                : null,
+            child: user.profileImageUrl == null || user.profileImageUrl!.isEmpty
+                ? const Icon(Icons.person, size: 60, color: Colors.white)
+                : null,
+          ),
+          if (_isEditing)
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.blue,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    _showSnackBar(
+                      "Tính năng thay đổi ảnh đại diện đang được phát triển.",
+                    );
+                  },
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            _buildProfileTextField(
-              controller: _descriptionController,
-              labelText: 'Mô tả',
-              enabled: _isEditing,
-              maxLines: 3,
-            ),
-          ],
-        ),
+        ],
       ),
     );
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    DateTime initialDate;
+    try {
+      initialDate = DateFormat('dd/MM/yyyy').parse(_dobController.text);
+    } catch (e) {
+      initialDate = DateTime.now();
+    }
+
+    DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      _dobController.text = DateFormat('dd/MM/yyyy').format(picked);
+    }
   }
 
   Widget _buildProfileTextField({
@@ -218,6 +250,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white70),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white, width: 2),
         ),
       ),
     );
