@@ -7,8 +7,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:ltdd_qltc/models/user.dart';
+import 'package:ltdd_qltc/models/account.dart';
 import 'package:ltdd_qltc/controllers/auth_controller.dart';
 import 'package:ltdd_qltc/controllers/home_controller.dart';
+import 'package:ltdd_qltc/controllers/account_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,8 +25,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _descriptionController = TextEditingController();
   bool _isEditing = false;
 
-  // Biến để lưu đường dẫn ảnh mới (nếu có)
   String? _newImagePath;
+  // Biến giữ giá trị ví được chọn (cho Dropdown)
+  String? _selectedAccountName;
 
   @override
   void initState() {
@@ -32,6 +35,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authController = Provider.of<AuthController>(context, listen: false);
     if (authController.currentUser != null) {
       _updateTextFields(authController.currentUser!);
+      Provider.of<AccountController>(context, listen: false)
+          .loadAccounts(authController.currentUser!.id!)
+          .then((_) {
+        // Sau khi tải accounts, nếu có thì chọn cái đầu tiên làm mặc định
+        final accountController =
+            Provider.of<AccountController>(context, listen: false);
+        if (accountController.accounts.isNotEmpty) {
+          setState(() {
+            _selectedAccountName = accountController.accounts.first.name;
+          });
+        }
+      });
     }
   }
 
@@ -56,24 +71,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  // Hàm chọn ảnh từ thư viện
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
-    // Chọn ảnh từ thư viện
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
-      // Lấy thư mục để lưu trữ file
       final directory = await getApplicationDocumentsDirectory();
-      // Tạo một tên file duy nhất
       final String fileName = p.basename(image.path);
       final String savedImagePath = p.join(directory.path, fileName);
 
-      // Sao chép file ảnh đã chọn vào thư mục của ứng dụng
       final File imageFile = File(image.path);
       await imageFile.copy(savedImagePath);
 
-      // Lưu đường dẫn ảnh mới vào state để hiển thị tạm thời
       setState(() {
         _newImagePath = savedImagePath;
       });
@@ -93,7 +102,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       name: _nameController.text.trim(),
       dob: _dobController.text.trim(),
       description: _descriptionController.text.trim(),
-      // Cập nhật đường dẫn ảnh mới nếu có
       profileImageUrl:
           _newImagePath ?? authController.currentUser!.profileImageUrl,
     );
@@ -105,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         homeController.updateCurrentUser(authController.currentUser!);
         setState(() {
           _isEditing = false;
-          _newImagePath = null; // Reset sau khi lưu thành công
+          _newImagePath = null;
         });
         _showSnackBar('Cập nhật hồ sơ thành công!');
       } else {
@@ -116,9 +124,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthController>(
-      builder: (context, authController, child) {
+    return Consumer2<AuthController, AccountController>(
+      builder: (context, authController, accountController, child) {
         final currentUser = authController.currentUser;
+        final List<Account> accounts = accountController.accounts;
 
         if (currentUser == null) {
           return Scaffold(
@@ -133,14 +142,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _updateTextFields(currentUser);
         }
 
+        double totalBalance = 0.0;
+        for (var account in accounts) {
+          totalBalance += account.balance;
+        }
+
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Hồ sơ của tôi'),
+            title: const Text(
+              'Hồ sơ của tôi',
+              style: TextStyle(color: Colors.white), // Đảm bảo tiêu đề màu trắng
+            ),
             backgroundColor: const Color(0xFF5CBDD9),
+            iconTheme:
+                const IconThemeData(color: Colors.white), // Icon back màu trắng
             actions: [
               IconButton(
                 icon: Icon(
                   _isEditing ? Icons.save_alt_outlined : Icons.edit_outlined,
+                  color: Colors.white,
                 ),
                 onPressed: () {
                   if (_isEditing) {
@@ -166,27 +186,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(16.0),
               children: [
                 _buildProfileAvatar(currentUser),
+                const SizedBox(height: 16),
+                // Tên người dùng - AQuoc
+                Center(
+                  child: Text(
+                    currentUser.name, // Lấy tên người dùng
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22, // Tăng kích thước font cho tên
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
+                // Tổng số dư và chọn ví
+                _buildTotalBalanceCard(totalBalance, accounts),
+                const SizedBox(height: 24),
+                // Tên của bạn
                 _buildProfileTextField(
                   controller: _nameController,
-                  labelText: 'Tên hiển thị',
+                  labelText: 'Tên của bạn',
+                  icon: Icons.person,
                   enabled: _isEditing,
+                  initialValue: currentUser.name, // Hiển thị tên hiện tại
                 ),
                 const SizedBox(height: 16),
+                // Ngày sinh
                 _buildProfileTextField(
                   controller: _dobController,
                   labelText: 'Ngày sinh (dd/MM/yyyy)',
+                  icon: Icons.calendar_today,
                   enabled: _isEditing,
                   readOnly: true,
                   onTap: _isEditing ? () => _selectDate(context) : null,
                 ),
                 const SizedBox(height: 16),
+                // Mô tả về bạn
                 _buildProfileTextField(
                   controller: _descriptionController,
-                  labelText: 'Mô tả',
+                  labelText: 'Mô tả về bạn',
+                  icon: Icons.info_outline,
                   enabled: _isEditing,
                   maxLines: 3,
                 ),
+                const SizedBox(height: 24),
+                // Lịch sử đăng nhập
+                _buildLoginHistoryButton(),
               ],
             ),
           ),
@@ -196,13 +241,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileAvatar(User user) {
-    // Xác định ảnh để hiển thị: ảnh mới > ảnh cũ > icon mặc định
     ImageProvider? backgroundImage;
     if (_newImagePath != null) {
       backgroundImage = FileImage(File(_newImagePath!));
     } else if (user.profileImageUrl != null &&
         user.profileImageUrl!.isNotEmpty) {
-      // Giả sử đường dẫn lưu trong DB là đường dẫn file cục bộ
       backgroundImage = FileImage(File(user.profileImageUrl!));
     }
 
@@ -230,10 +273,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Colors.white,
                     size: 20,
                   ),
-                  onPressed: _pickImage, // Gọi hàm chọn ảnh
+                  onPressed: _pickImage,
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTotalBalanceCard(double totalBalance, List<Account> accounts) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tổng số dư',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            NumberFormat.currency(locale: 'vi_VN', symbol: '₫')
+                .format(totalBalance),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Dropdown cho "Tất cả ví"
+          DropdownButtonFormField<String>(
+            value: _selectedAccountName,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.05), // Màu nền mờ hơn
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.white, width: 1.5),
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            dropdownColor: const Color(0xFF4BAFCC).withOpacity(0.9), // Màu nền dropdown
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+            items: accounts.map<DropdownMenuItem<String>>((Account account) {
+              return DropdownMenuItem<String>(
+                value: account.name,
+                child: Text(account.name),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedAccountName = newValue;
+                // TODO: Cập nhật hiển thị số dư dựa trên ví được chọn nếu cần
+              });
+            },
+            hint: const Text(
+              'Tất cả ví',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
         ],
       ),
     );
@@ -252,6 +370,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       initialDate: initialDate,
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF5CBDD9), // Header background color
+              onPrimary: Colors.white, // Header text color
+              onSurface: Colors.black, // Body text color
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF5CBDD9), // Button text color
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null) {
       _dobController.text = DateFormat('dd/MM/yyyy').format(picked);
@@ -261,11 +396,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileTextField({
     required TextEditingController controller,
     required String labelText,
+    IconData? icon, // Thêm icon
     bool enabled = false,
     bool readOnly = false,
     int? maxLines = 1,
     VoidCallback? onTap,
+    String? initialValue, // Thêm initialValue để set giá trị ban đầu cho controller
   }) {
+    // Nếu có initialValue, set nó vào controller khi widget được build lần đầu
+    // Hoặc khi enabled chuyển từ false sang true
+    if (initialValue != null && controller.text.isEmpty && !enabled) {
+      controller.text = initialValue;
+    }
+
     return TextField(
       controller: controller,
       enabled: enabled,
@@ -275,9 +418,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: TextStyle(color: enabled ? Colors.white : Colors.white54),
+        labelStyle: TextStyle(
+            color: enabled ? Colors.white : Colors.white54), // Màu label
+        prefixIcon: icon != null
+            ? Icon(icon, color: Colors.white.withOpacity(0.7))
+            : null, // Icon ở đầu input
         filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
+        fillColor: Colors.white.withOpacity(0.1), // Màu nền mờ
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -293,6 +440,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.white, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginHistoryButton() {
+    return GestureDetector(
+      onTap: () {
+        // TODO: Điều hướng đến màn hình lịch sử đăng nhập
+        _showSnackBar('Chức năng lịch sử đăng nhập chưa được triển khai.');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.history, color: Colors.white, size: 24),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Lịch sử đăng nhập',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+          ],
         ),
       ),
     );

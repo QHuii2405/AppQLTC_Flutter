@@ -1,7 +1,9 @@
+// auth_screen.dart (Chỉ phần thay đổi)
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:ltdd_qltc/views/forgot_password_screen.dart';
 import 'package:ltdd_qltc/controllers/auth_controller.dart';
 import 'package:ltdd_qltc/models/user.dart';
+import 'package:provider/provider.dart'; // Import màn hình mới
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -88,6 +90,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _showSnackBar(
         _isSignInMode ? 'Đăng nhập thành công!' : 'Tạo tài khoản thành công!',
       );
+      // Ensure the home route is defined in your main.dart
       Navigator.pushReplacementNamed(context, '/home', arguments: user);
     } else if (mounted) {
       _showSnackBar(authController.errorMessage ?? 'Đã có lỗi xảy ra.');
@@ -95,8 +98,11 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _handleForgotPassword() {
-    _showSnackBar('Chức năng Quên mật khẩu đang được phát triển!');
-    print('Forgot Password button pressed!'); // For debugging
+    // Điều hướng đến ForgotPasswordScreen
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
   }
 
   // New handler for Google sign-in
@@ -176,14 +182,14 @@ class _AuthScreenState extends State<AuthScreen> {
                     // Google Sign-in Button
                     _buildSocialSignInButton(
                       text: 'Tiếp tục với Google',
-                      iconAsset: 'assets/images/google_logo.png',
+                      iconAsset: 'assets/images/google_logo.png', // Đảm bảo bạn có ảnh này
                       onPressed: _handleGoogleSignIn,
                     ),
                     const SizedBox(height: 16),
                     // Facebook Sign-in Button
                     _buildSocialSignInButton(
                       text: 'Tiếp tục với Facebook',
-                      iconAsset: 'assets/images/facebook_logo.png',
+                      iconAsset: 'assets/images/facebook_logo.png', // Đảm bảo bạn có ảnh này
                       onPressed: _handleFacebookSignIn,
                     ),
                     const SizedBox(height: 20),
@@ -230,7 +236,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: _handleForgotPassword,
+                          onPressed: _handleForgotPassword, // Gọi hàm mới
                           child: const Text(
                             'Quên mật khẩu?',
                             style: TextStyle(

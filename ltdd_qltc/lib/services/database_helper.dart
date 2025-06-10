@@ -131,6 +131,18 @@ class DatabaseHelper {
     return null;
   }
 
+  Future<bool> updateUserResetToken(
+      String email, String? resetToken, int? resetTokenExpires) async {
+    final db = await database;
+    final int rowsAffected = await db.update(
+      'users',
+      {'reset_token': resetToken, 'reset_token_expires': resetTokenExpires},
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+    return rowsAffected > 0;
+  }
+
   Future<User?> getUserById(int id) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
@@ -200,6 +212,7 @@ class DatabaseHelper {
     }
     return false;
   }
+
 
   // --- Các hàm xử lý Account ---
   Future<int> insertAccount(Account account) async {

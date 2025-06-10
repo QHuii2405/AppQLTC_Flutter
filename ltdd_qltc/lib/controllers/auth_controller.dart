@@ -1,3 +1,4 @@
+// auth_controller.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:ltdd_qltc/services/database_helper.dart';
@@ -55,8 +56,9 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     clearErrorMessage();
     try {
-      if (await _dbHelper.getUserByEmail(email) != null) {
-        setErrorMessage('Email đã tồn tại. Vui lòng sử dụng email khác.');
+      final existingUser = await _dbHelper.getUserByEmail(email);
+      if (existingUser != null) {
+        setErrorMessage('Email đã được đăng ký.');
         return null;
       }
 
@@ -66,16 +68,17 @@ class AuthController extends ChangeNotifier {
         name: name,
         createdAt: DateTime.now().toIso8601String(),
       );
+      final userId = await _dbHelper.insertUser(newUser);
 
-      int newId = await _dbHelper.insertUser(newUser);
-      if (newId > 0) {
-        final createdUser = newUser.copyWith(id: newId);
-        _currentUser = createdUser;
-        await _dbHelper.createDefaultAccountAndCategories(newId);
+      if (userId > 0) {
+        // Load default accounts and categories for the new user
+        await _dbHelper.createDefaultAccountAndCategories(userId);
+
+        _currentUser = newUser.copyWith(id: userId);
         notifyListeners();
-        return createdUser;
+        return _currentUser;
       } else {
-        setErrorMessage('Đăng ký thất bại. Vui lòng thử lại.');
+        setErrorMessage('Không thể tạo tài khoản.');
         return null;
       }
     } catch (e) {
@@ -86,13 +89,18 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateUserProfile(User updatedUser) async {
+  void signOut() {
+    _currentUser = null;
+    notifyListeners();
+  }
+
+  Future<bool> updateUserProfile(User user) async {
     _setLoading(true);
     clearErrorMessage();
     try {
-      bool success = await _dbHelper.updateUser(updatedUser);
+      bool success = await _dbHelper.updateUser(user);
       if (success) {
-        _currentUser = updatedUser;
+        _currentUser = user;
         notifyListeners();
         return true;
       } else {
@@ -101,59 +109,6 @@ class AuthController extends ChangeNotifier {
       }
     } catch (e) {
       setErrorMessage('Lỗi khi cập nhật hồ sơ: $e');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<String?> forgotPassword(String email) async {
-    _setLoading(true);
-    clearErrorMessage();
-    try {
-      User? user = await _dbHelper.getUserByEmail(email);
-      if (user == null) {
-        setErrorMessage('Email không tồn tại.');
-        return null;
-      }
-      String token = await _dbHelper.generateAndSaveResetToken(user.id!);
-      return token;
-    } catch (e) {
-      setErrorMessage('Lỗi khi gửi mã đặt lại: $e');
-      return null;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  Future<bool> resetPassword(
-    String email,
-    String token,
-    String newPassword,
-    String confirmNewPassword,
-  ) async {
-    _setLoading(true);
-    clearErrorMessage();
-    if (newPassword != confirmNewPassword) {
-      setErrorMessage('Mật khẩu mới và xác nhận không khớp.');
-      _setLoading(false);
-      return false;
-    }
-    if (newPassword.length < 6) {
-      setErrorMessage('Mật khẩu mới phải có ít nhất 6 ký tự.');
-      _setLoading(false);
-      return false;
-    }
-    try {
-      bool success = await _dbHelper.resetPassword(email, token, newPassword);
-      if (success) {
-        return true;
-      } else {
-        setErrorMessage('Mã đặt lại không hợp lệ hoặc đã hết hạn.');
-        return false;
-      }
-    } catch (e) {
-      setErrorMessage('Lỗi khi đặt lại mật khẩu: $e');
       return false;
     } finally {
       _setLoading(false);
@@ -213,8 +168,78 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  void signOut() {
-    _currentUser = null;
-    notifyListeners();
+  // NEW: Send reset token to email
+  Future<bool> sendResetToken(String email) async {
+    _setLoading(true);
+    clearErrorMessage();
+    try {
+      final user = await _dbHelper.getUserByEmail(email);
+      if (user == null) {
+        setErrorMessage('Không tìm thấy tài khoản với email này.');
+        return false;
+      }
+
+      // Generate a simple token (in a real app, this would be more secure and sent via email)
+      final String resetToken =
+          (Random().nextInt(900000) + 100000).toString(); // 6-digit number
+      final int expiresAt =
+          DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch;
+
+      bool success = await _dbHelper.updateUserResetToken(
+        email,
+        resetToken,
+        expiresAt,
+      );
+
+      if (success) {
+        // In a real app, you would send this token to the user's email.
+        // For this example, we'll just print it to the console for testing.
+        print('Mã đặt lại mật khẩu cho $email: $resetToken');
+        setErrorMessage('Mã đặt lại đã được gửi đến email của bạn. Vui lòng kiểm tra console để lấy mã.');
+        return true;
+      } else {
+        setErrorMessage('Không thể gửi mã đặt lại mật khẩu.');
+        return false;
+      }
+    } catch (e) {
+      setErrorMessage('Lỗi khi gửi mã đặt lại: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // NEW: Reset password with token
+  Future<bool> resetPasswordWithToken(
+      String email, String token, String newPassword, String confirmPassword) async {
+    _setLoading(true);
+    clearErrorMessage();
+
+    if (newPassword != confirmPassword) {
+      setErrorMessage('Mật khẩu mới và xác nhận không khớp.');
+      _setLoading(false);
+      return false;
+    }
+    if (newPassword.length < 6) {
+      setErrorMessage('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      _setLoading(false);
+      return false;
+    }
+
+    try {
+      bool success = await _dbHelper.resetPassword(email, newPassword, token);
+      if (success) {
+        setErrorMessage('Đặt lại mật khẩu thành công!');
+        return true;
+      } else {
+        setErrorMessage('Mã đặt lại không hợp lệ hoặc đã hết hạn.');
+        return false;
+      }
+    } catch (e) {
+      setErrorMessage('Lỗi khi đặt lại mật khẩu: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 }
