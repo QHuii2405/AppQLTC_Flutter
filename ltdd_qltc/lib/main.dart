@@ -1,31 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:ltdd_qltc/views/signup_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart'; // Import thư viện bản địa hóa (cần thiết cho DatePicker)
 
-import 'package:ltdd_qltc/services/database_helper.dart';
-import 'package:ltdd_qltc/controllers/auth_controller.dart';
-import 'package:ltdd_qltc/controllers/home_controller.dart';
-import 'package:ltdd_qltc/controllers/category_controller.dart';
-import 'package:ltdd_qltc/controllers/transaction_controller.dart';
-import 'package:ltdd_qltc/controllers/theme_provider.dart';
-import 'package:ltdd_qltc/controllers/account_controller.dart';
-import 'package:ltdd_qltc/views/home_screen.dart';
+// Models
 import 'package:ltdd_qltc/models/user.dart';
 
-// Import các màn hình con đã tạo
-import 'package:ltdd_qltc/views/profile_screen.dart';
-import 'package:ltdd_qltc/views/wallets_screen.dart';
-import 'package:ltdd_qltc/views/add_transaction_screen.dart';
-import 'package:ltdd_qltc/views/statistics_screen.dart';
+// Controllers
+import 'package:ltdd_qltc/controllers/account_controller.dart';
+import 'package:ltdd_qltc/controllers/auth_controller.dart';
+import 'package:ltdd_qltc/controllers/category_controller.dart';
+import 'package:ltdd_qltc/controllers/home_controller.dart';
+import 'package:ltdd_qltc/controllers/transaction_controller.dart';
+
+// Services
+import 'package:ltdd_qltc/services/database_helper.dart';
+
+// Views
+import 'package:ltdd_qltc/views/auth_screen.dart';
+import 'package:ltdd_qltc/views/home_screen.dart';
 import 'package:ltdd_qltc/views/settings_screen.dart';
+import 'package:ltdd_qltc/views/profile_screen.dart';
 import 'package:ltdd_qltc/views/manage_accounts_screen.dart';
 import 'package:ltdd_qltc/views/manage_categories_screen.dart';
 import 'package:ltdd_qltc/views/change_password_screen.dart';
 import 'package:ltdd_qltc/views/login_history_screen.dart';
 
 void main() {
+  // Đảm bảo Flutter bindings đã được khởi tạo trước khi chạy app
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Chạy ứng dụng
   runApp(const MyApp());
 }
 
@@ -34,134 +38,146 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final databaseHelper = DatabaseHelper();
+    // Khởi tạo một lần đối tượng DatabaseHelper
+    final dbHelper = DatabaseHelper();
 
+    // Sử dụng MultiProvider để cung cấp các controller cho toàn bộ ứng dụng
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthController(databaseHelper)),
-        ChangeNotifierProvider(create: (_) => HomeController(databaseHelper)),
-        ChangeNotifierProvider(
-          create: (_) => CategoryController(databaseHelper),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => TransactionController(databaseHelper),
-        ),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(
-          create: (_) => AccountController(databaseHelper),
-        ),
+        ChangeNotifierProvider(create: (_) => AuthController(dbHelper)),
+        ChangeNotifierProvider(create: (_) => HomeController(dbHelper)),
+        ChangeNotifierProvider(create: (_) => AccountController(dbHelper)),
+        ChangeNotifierProvider(create: (_) => CategoryController(dbHelper)),
+        ChangeNotifierProvider(create: (_) => TransactionController(dbHelper)),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
-          return MaterialApp(
-            title: 'Quản Lý Thu Chi',
-            debugShowCheckedModeBanner: false,
-            themeMode: themeProvider.themeMode,
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
-              visualDensity: VisualDensity.adaptivePlatformDensity,
-              fontFamily: 'Inter',
-              brightness: Brightness.light,
-              appBarTheme: const AppBarTheme(
-                backgroundColor: Color(0xFF5CBDD9),
-                foregroundColor: Colors.white,
-              ),
-              scaffoldBackgroundColor: const Color(0xFFFFFFFF),
+      child: MaterialApp(
+        title: 'E-Wallet',
+        debugShowCheckedModeBanner: false, // Tắt banner "Debug"
+        // Cấu hình giao diện chung cho ứng dụng
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          scaffoldBackgroundColor: const Color(0xFF4BAFCC),
+          fontFamily: 'Roboto', // Có thể thay đổi font chữ tại đây
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF5CBDD9),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            titleTextStyle: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-            darkTheme: ThemeData(
-              primarySwatch: Colors.blue,
-              visualDensity: VisualDensity.adaptivePlatformDensity,
-              fontFamily: 'Inter',
-              brightness: Brightness.dark,
-              appBarTheme: AppBarTheme(
-                backgroundColor: Colors.grey[900],
-                foregroundColor: Colors.white,
-              ),
-              scaffoldBackgroundColor: Colors.grey[850],
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF5CBDD9),
             ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
 
-            // Cần thiết cho DatePickerDialog để hoạt động, ngay cả khi không bản địa hóa cụ thể
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              // GlobalCupertinoLocalizations.delegate, // Tùy chọn, chỉ cần nếu bạn dùng widget Cupertino
-            ],
-            // Chỉ hỗ trợ tiếng Anh nếu bạn không muốn bản địa hóa tiếng Việt.
-            // DatePicker sẽ hiển thị bằng tiếng Anh nếu không có locale nào khác được thiết bị hỗ trợ.
-            supportedLocales: const [
-              // Đã thêm 'const' vào Locale
-              const Locale('en', 'US'),
-            ],
+        // Cấu hình địa phương hóa (localization) để hỗ trợ tiếng Việt
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('en', ''), // English
+          Locale('vi', 'VN'), // Vietnamese
+        ],
 
-            // locale: const Locale('vi', 'VN'), // Bỏ comment nếu bạn muốn ép buộc tiếng Việt ngay lập tức
-            initialRoute: '/signin',
-            routes: {
-              '/signin': (context) => const SigninScreen(),
-              '/home': (context) => const HomeScreen(),
-              '/profile': (context) => ProfileScreen(
-                user:
-                    ModalRoute.of(context)?.settings.arguments as User? ??
-                    User(
-                      email: '',
-                      password: '',
-                      name: 'Guest',
-                      createdAt: DateTime.now().toIso8601String(),
-                    ),
-              ),
-              '/manage_accounts': (context) => ManageAccountsScreen(
-                user:
-                    ModalRoute.of(context)?.settings.arguments as User? ??
-                    User(
-                      email: '',
-                      password: '',
-                      name: 'Guest',
-                      createdAt: DateTime.now().toIso8601String(),
-                    ),
-              ),
-              '/manage_categories': (context) => ManageCategoriesScreen(
-                user:
-                    ModalRoute.of(context)?.settings.arguments as User? ??
-                    User(
-                      email: '',
-                      password: '',
-                      name: 'Guest',
-                      createdAt: DateTime.now().toIso8601String(),
-                    ),
-              ),
-              '/change_password': (context) => ChangePasswordScreen(
-                user:
-                    ModalRoute.of(context)?.settings.arguments as User? ??
-                    User(
-                      email: '',
-                      password: '',
-                      name: 'Guest',
-                      createdAt: DateTime.now().toIso8601String(),
-                    ),
-              ),
-              '/login_history': (context) => LoginHistoryScreen(
-                user:
-                    ModalRoute.of(context)?.settings.arguments as User? ??
-                    User(
-                      email: '',
-                      password: '',
-                      name: 'Guest',
-                      createdAt: DateTime.now().toIso8601String(),
-                    ),
-              ),
-              '/add_transaction': (context) => AddTransactionScreen(
-                user:
-                    ModalRoute.of(context)?.settings.arguments as User? ??
-                    User(
-                      email: '',
-                      password: '',
-                      name: 'Guest',
-                      createdAt: DateTime.now().toIso8601String(),
-                    ),
-              ),
-            },
-          );
+        // Route ban đầu của ứng dụng
+        initialRoute: '/signin',
+
+        // Xử lý các route có tham số truyền vào
+        onGenerateRoute: (settings) {
+          final args = settings.arguments;
+
+          switch (settings.name) {
+            case '/signin':
+              return MaterialPageRoute(builder: (_) => const AuthScreen());
+            case '/home':
+              // Đảm bảo rằng tham số là một đối tượng User
+              if (args is User) {
+                // `settings` được truyền vào để HomeScreen có thể nhận `arguments`
+                return MaterialPageRoute(
+                  builder: (_) => const HomeScreen(),
+                  settings: settings,
+                );
+              }
+              return _errorRoute();
+            case '/settings':
+              if (args is User) {
+                return MaterialPageRoute(
+                  builder: (_) => SettingsScreen(user: args),
+                );
+              }
+              return _errorRoute();
+            case '/profile':
+              if (args is User) {
+                return MaterialPageRoute(
+                  builder: (_) => ProfileScreen(user: args),
+                );
+              }
+              return _errorRoute();
+            case '/manage_accounts':
+              if (args is User) {
+                return MaterialPageRoute(
+                  builder: (_) => ManageAccountsScreen(user: args),
+                );
+              }
+              return _errorRoute();
+            case '/manage_categories':
+              if (args is User) {
+                return MaterialPageRoute(
+                  builder: (_) => ManageCategoriesScreen(user: args),
+                );
+              }
+              return _errorRoute();
+            case '/change_password':
+              if (args is User) {
+                return MaterialPageRoute(
+                  builder: (_) => ChangePasswordScreen(user: args),
+                );
+              }
+              return _errorRoute();
+            case '/login_history':
+              if (args is User) {
+                return MaterialPageRoute(
+                  builder: (_) => LoginHistoryScreen(user: args),
+                );
+              }
+              return _errorRoute();
+            default:
+              // Nếu không tìm thấy route, hiển thị màn hình lỗi
+              return _errorRoute();
+          }
         },
       ),
+    );
+  }
+
+  // Hàm trợ giúp để trả về một route lỗi
+  static Route<dynamic> _errorRoute() {
+    return MaterialPageRoute(
+      builder: (_) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Lỗi')),
+          body: const Center(child: Text('Đã xảy ra lỗi điều hướng!')),
+        );
+      },
     );
   }
 }

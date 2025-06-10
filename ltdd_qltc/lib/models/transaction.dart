@@ -10,8 +10,6 @@ class Transaction {
   int accountId;
   String createdAt;
 
-  // Thêm các trường để lưu trữ tên danh mục và tên tài khoản
-  // Những trường này không có trong DB, mà được thêm vào khi lấy dữ liệu
   String? categoryName;
   String? accountName;
   String? categoryIcon;
@@ -38,13 +36,13 @@ class Transaction {
       userId: map['user_id'],
       type: map['type'],
       categoryId: map['category_id'],
-      amount: map['amount'],
+      // SỬA LỖI: Chuyển đổi tường minh sang double
+      amount: (map['amount'] as num).toDouble(),
       description: map['description'],
       transactionDate: map['transaction_date'],
       paymentMethod: map['payment_method'],
       accountId: map['account_id'],
       createdAt: map['created_at'],
-      // Các trường này sẽ được gán sau khi join dữ liệu từ DB
       categoryName: map['category_name'],
       accountName: map['account_name'],
       categoryIcon: map['category_icon'],
@@ -66,7 +64,6 @@ class Transaction {
     };
   }
 
-  // Phương thức MỚI: toMapWithoutId
   Map<String, dynamic> toMapWithoutId() {
     return {
       'user_id': userId,

@@ -7,8 +7,8 @@ class User {
   String? resetToken;
   int? resetTokenExpires;
   String? profileImageUrl;
-  String? dob; // Thêm trường này
-  String? description; // Thêm trường này
+  String? dob;
+  String? description;
   double?
   balance; // Tổng số dư từ tất cả các ví (không lưu trong DB, chỉ dùng cho hiển thị)
 
@@ -21,9 +21,9 @@ class User {
     this.resetToken,
     this.resetTokenExpires,
     this.profileImageUrl,
-    this.dob, // Cập nhật constructor
-    this.description, // Cập nhật constructor
-    this.balance, // Thêm vào constructor
+    this.dob,
+    this.description,
+    this.balance,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
@@ -36,9 +36,9 @@ class User {
       resetToken: map['reset_token'],
       resetTokenExpires: map['reset_token_expires'],
       profileImageUrl: map['profile_image_url'],
-      dob: map['dob'], // Cập nhật fromMap
-      description: map['description'], // Cập nhật fromMap
-      balance: map['balance'], // Lấy từ map nếu có
+      dob: map['dob'],
+      description: map['description'],
+      balance: map['balance'],
     );
   }
 
@@ -52,9 +52,8 @@ class User {
       'reset_token': resetToken,
       'reset_token_expires': resetTokenExpires,
       'profile_image_url': profileImageUrl,
-      'dob': dob, // Cập nhật toMap
-      'description': description, // Cập nhật toMap
-      // balance không được đưa vào toMap vì nó không lưu trong DB
+      'dob': dob,
+      'description': description,
     };
   }
 
@@ -72,7 +71,6 @@ class User {
     };
   }
 
-  // Thêm phương thức copyWith để dễ dàng tạo bản sao đối tượng với các thay đổi
   User copyWith({
     int? id,
     String? email,

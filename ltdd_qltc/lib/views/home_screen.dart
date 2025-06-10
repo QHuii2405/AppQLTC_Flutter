@@ -6,12 +6,14 @@ import 'package:ltdd_qltc/controllers/home_controller.dart';
 import 'package:ltdd_qltc/models/transaction.dart';
 import 'package:ltdd_qltc/models/user.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
+import 'dart:ui' as ui;
 
-// Import các màn hình con mới
-import 'package:ltdd_qltc/views/wallets_screen.dart'; // Thay thế bằng đường dẫn thực tế của bạn
-import 'package:ltdd_qltc/views/add_transaction_screen.dart'; // Thay thế bằng đường dẫn thực tế của bạn
-import 'package:ltdd_qltc/views/statistics_screen.dart'; // Thay thế bằng đường dẫn thực tế của bạn
-import 'package:ltdd_qltc/views/settings_screen.dart'; // Thay thế bằng đường dẫn thực tế của bạn
+// Import các màn hình con
+import 'package:ltdd_qltc/views/wallets_screen.dart';
+import 'package:ltdd_qltc/views/add_transaction_screen.dart';
+import 'package:ltdd_qltc/views/statistics_screen.dart';
+import 'package:ltdd_qltc/views/settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,18 +25,23 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   String _currentTime = DateFormat('HH:mm').format(DateTime.now());
-  bool _dataLoaded = false; // Cờ để đảm bảo loadHomeData chỉ chạy một lần
+  bool _dataLoaded = false;
 
-  late PageController _pageController; // Controller để điều khiển PageView
-  List<Widget> _screenOptions = []; // Danh sách các màn hình con
+  late PageController _pageController;
+  late List<Widget> _screenOptions;
 
   @override
   void initState() {
     super.initState();
-    // Khởi tạo PageController
     _pageController = PageController(initialPage: _currentIndex);
+    _screenOptions = [
+      _buildLoadingScreen(), // Placeholder
+      _buildLoadingScreen(),
+      _buildLoadingScreen(),
+      _buildLoadingScreen(),
+      _buildLoadingScreen(),
+    ];
 
-    // Cập nhật thời gian mỗi giây
     Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         setState(() {
@@ -49,45 +56,35 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Lấy dữ liệu người dùng từ arguments CHỈ KHI CHƯA CÓ và CHƯA TẢI DỮ LIỆU
     if (!_dataLoaded) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args != null && args is User) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          // Cập nhật người dùng hiện tại trong HomeController
-          Provider.of<HomeController>(
+          final homeController = Provider.of<HomeController>(
             context,
             listen: false,
-          ).updateCurrentUser(args);
-          // Tải dữ liệu cho HomeScreen thông qua Controller
+          );
+          homeController.updateCurrentUser(args);
           if (args.id != null) {
-            Provider.of<HomeController>(
-              context,
-              listen: false,
-            ).loadHomeData(args.id!);
-            _dataLoaded = true; // Đặt cờ là true sau khi tải dữ liệu
-
-            // Khởi tạo danh sách các màn hình con SAU KHI CÓ USER
-            // Đảm bảo các màn hình con nhận được User từ args
-            _screenOptions = [
-              _buildHomeContent(
-                Provider.of<HomeController>(context, listen: false),
-              ), // Màn hình Home chính
-              WalletsScreen(user: args),
-              AddTransactionScreen(user: args),
-              StatisticsScreen(user: args),
-              SettingsScreen(user: args),
-            ];
-            setState(
-              () {},
-            ); // Cập nhật trạng thái để PageView được xây dựng với các màn hình con
+            homeController.loadHomeData(args.id!).then((_) {
+              if (mounted) {
+                setState(() {
+                  _screenOptions = [
+                    _buildHomeContent(),
+                    WalletsScreen(user: args),
+                    AddTransactionScreen(user: args),
+                    StatisticsScreen(user: args),
+                    SettingsScreen(user: args),
+                  ];
+                  _dataLoaded = true;
+                });
+              }
+            });
           } else {
-            print('Lỗi: ID người dùng là null trong HomeScreen.');
-            _showSnackBar('Lỗi tải dữ liệu: Không tìm thấy ID người dùng.');
+            Navigator.pushReplacementNamed(context, '/signin');
           }
         });
       } else {
-        // Nếu không có user truyền qua arguments, có thể chuyển về màn hình đăng nhập
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.pushReplacementNamed(context, '/signin');
         });
@@ -101,38 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // Lắng nghe thay đổi từ HomeController
-    return Consumer<HomeController>(
-      builder: (context, controller, child) {
-        return Scaffold(
-          body: PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            children: _screenOptions.isNotEmpty
-                ? _screenOptions // Sử dụng danh sách màn hình đã khởi tạo
-                : [
-                    // Hiển thị một màn hình loading hoặc placeholder nếu _screenOptions rỗng
-                    const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  ],
-          ),
-          bottomNavigationBar: _buildBottomNavigationBar(controller),
-        );
-      },
-    );
-  }
-
-  // --- Các Widget con (Không thay đổi nhiều, chỉ gói gọn lại) ---
-  Widget _buildHomeContent(HomeController controller) {
+  Widget _buildLoadingScreen() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -141,24 +107,75 @@ class _HomeScreenState extends State<HomeScreen> {
           colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
         ),
       ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            _buildStatusBar(),
-            _buildHeader(controller.currentUser),
-            _buildChart(),
-            Expanded(
-              child: controller.isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : _buildTransactionsList(controller),
-            ),
-          ],
-        ),
+      child: const Center(
+        child: CircularProgressIndicator(color: Colors.white),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          if (index != 2) {
+            setState(() {
+              _currentIndex = index;
+            });
+          }
+        },
+        children: _screenOptions,
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildHomeContent() {
+    return Consumer<HomeController>(
+      builder: (context, controller, child) {
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF5CBDD9), Color(0xFF4BAFCC)],
+            ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildStatusBar(),
+                _buildHeader(controller.currentUser),
+                controller.isLoading
+                    ? const Expanded(
+                        child: Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      )
+                    : Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            if (controller.currentUser?.id != null) {
+                              await controller.loadHomeData(
+                                controller.currentUser!.id!,
+                              );
+                            }
+                          },
+                          child: ListView(
+                            padding: EdgeInsets.zero,
+                            children: [
+                              _buildChart(controller),
+                              _buildTransactionsList(controller),
+                            ],
+                          ),
+                        ),
+                      ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -196,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => _showProfileMenu(user), // Truyền user vào menu
+            onTap: () => _showProfileMenu(user),
             child: Container(
               width: 50,
               height: 50,
@@ -235,7 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Xin chào,',
+                'Hi,',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 14,
@@ -256,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildChart() {
+  Widget _buildChart(HomeController controller) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(20),
@@ -273,21 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 10,
                 height: 10,
                 decoration: const BoxDecoration(
-                  color: Colors.pink,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Chi tiêu',
-                style: TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              const SizedBox(width: 20),
-              Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.green,
+                  color: Colors.greenAccent,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -296,14 +299,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Thu nhập',
                 style: TextStyle(color: Colors.white, fontSize: 12),
               ),
+              const SizedBox(width: 20),
+              Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: Colors.pinkAccent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Chi tiêu',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 100,
-            child: CustomPaint(
-              painter: ChartPainter(),
-              size: const Size(double.infinity, 100),
+            height: 120,
+            child: LineChart(
+              incomeData: controller.incomeByMonth,
+              expenseData: controller.expenseByMonth,
             ),
           ),
         ],
@@ -312,20 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTransactionsList(HomeController controller) {
-    // Nhóm giao dịch theo ngày
-    Map<String, List<Transaction>> groupedTransactions = {};
-    for (var transaction in controller.transactions) {
-      // Chuyển đổi từ định dạng abreast-MM-DD sang DD/MM/YYYY để nhóm
-      final formattedDate = DateFormat(
-        'dd/MM/yyyy',
-      ).format(DateFormat('yyyy-MM-dd').parse(transaction.transactionDate));
-      if (!groupedTransactions.containsKey(formattedDate)) {
-        groupedTransactions[formattedDate] = [];
-      }
-      groupedTransactions[formattedDate]!.add(transaction);
-    }
-
-    // Sắp xếp các ngày để hiển thị gần đây nhất trước
+    final groupedTransactions = controller.groupedTransactions;
     final sortedDates = groupedTransactions.keys.toList()
       ..sort((a, b) {
         final dateA = DateFormat('dd/MM/yyyy').parse(a);
@@ -333,62 +337,63 @@ class _HomeScreenState extends State<HomeScreen> {
         return dateB.compareTo(dateA);
       });
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF5CBDD9),
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(0),
-          topRight: Radius.circular(0),
+    if (controller.transactions.isEmpty && !controller.isLoading) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
+        child: Text(
+          'Chưa có giao dịch nào.\nHãy nhấn nút "+" để bắt đầu!',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 16),
         ),
-      ),
-      child: ListView.builder(
-        padding: EdgeInsets.zero,
-        itemCount: sortedDates.length,
-        itemBuilder: (context, index) {
-          String date = sortedDates[index];
-          List<Transaction> dayTransactions = groupedTransactions[date]!;
+      );
+    }
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 15,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      date,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                        fontWeight: FontWeight.w500,
-                      ),
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: sortedDates.length,
+      itemBuilder: (context, index) {
+        String date = sortedDates[index];
+        List<Transaction> dayTransactions = groupedTransactions[date]!;
+        final parsedDate = DateFormat('dd/MM/yyyy').parse(date);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              color: Colors.black.withOpacity(0.1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    date,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w500,
                     ),
-                    Text(
-                      controller.getDayName(
-                        DateFormat(
-                          'yyyy-MM-dd',
-                        ).format(DateFormat('dd/MM/yyyy').parse(date)),
-                      ), // Lấy tên ngày
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
+                  ),
+                  Text(
+                    controller.getDayName(
+                      DateFormat('yyyy-MM-dd').format(parsedDate),
                     ),
-                  ],
-                ),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
               ),
-              ...dayTransactions.map(
-                (transaction) => _buildTransactionItem(transaction, controller),
-              ),
-            ],
-          );
-        },
-      ),
+            ),
+            ...dayTransactions.map(
+              (transaction) => _buildTransactionItem(transaction, controller),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -396,19 +401,15 @@ class _HomeScreenState extends State<HomeScreen> {
     Transaction transaction,
     HomeController controller,
   ) {
+    bool isIncome = transaction.type == 'income';
     String formattedAmount = NumberFormat.currency(
       locale: 'vi_VN',
-      symbol: 'đ',
+      symbol: '₫',
       decimalDigits: 0,
     ).format(transaction.amount);
-    if (transaction.type == 'expense') {
-      formattedAmount = '-$formattedAmount';
-    } else {
-      formattedAmount = '+$formattedAmount';
-    }
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
           Container(
@@ -416,14 +417,12 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 50,
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(25),
+              borderRadius: BorderRadius.circular(15),
             ),
             child: Center(
               child: Text(
                 transaction.categoryIcon ??
-                    controller.getCategoryIcon(
-                      transaction.categoryName ?? '',
-                    ), // Icon từ DB hoặc mặc định
+                    controller.getCategoryIcon(transaction.categoryName ?? ''),
                 style: const TextStyle(fontSize: 24),
               ),
             ),
@@ -434,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  transaction.categoryName ?? 'Không rõ', // Tên danh mục từ DB
+                  transaction.categoryName ?? 'Không rõ',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -442,7 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Text(
-                  transaction.description ?? '', // Mô tả giao dịch
+                  transaction.accountName ?? '',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white.withOpacity(0.8),
@@ -451,32 +450,24 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formattedAmount, // Số tiền đã định dạng
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                transaction.accountName ?? 'Không rõ', // Tên tài khoản từ DB
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withOpacity(0.7),
-                ),
-              ),
-            ],
+          Text(
+            '${isIncome ? '+' : '-'} $formattedAmount',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: isIncome ? Colors.greenAccent : Colors.white,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBottomNavigationBar(HomeController controller) {
+  Widget _buildBottomNavigationBar() {
+    final user = Provider.of<HomeController>(
+      context,
+      listen: false,
+    ).currentUser;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -500,8 +491,18 @@ class _HomeScreenState extends State<HomeScreen> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (index) {
-            // Sử dụng PageController để chuyển trang
-            _pageController.jumpToPage(index);
+            if (index == 2) {
+              if (user != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddTransactionScreen(user: user),
+                  ),
+                );
+              }
+            } else {
+              _pageController.jumpToPage(index);
+            }
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
@@ -510,32 +511,8 @@ class _HomeScreenState extends State<HomeScreen> {
           showUnselectedLabels: true,
           elevation: 0,
           items: [
-            BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _currentIndex == 0
-                      ? const Color(0xFF5CBDD9).withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.home_filled),
-              ),
-              label: 'Trang chủ',
-            ),
-            BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _currentIndex == 1
-                      ? const Color(0xFF5CBDD9).withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.account_balance_wallet),
-              ),
-              label: 'Ví tiền',
-            ),
+            _buildNavItem(Icons.home_filled, 'Trang chủ', 0),
+            _buildNavItem(Icons.account_balance_wallet, 'Ví tiền', 1),
             BottomNavigationBarItem(
               icon: Container(
                 width: 56,
@@ -555,39 +532,36 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               label: '',
             ),
-            BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _currentIndex == 3
-                      ? const Color(0xFF5CBDD9).withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.pie_chart),
-              ),
-              label: 'Thống kê',
-            ),
-            BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _currentIndex == 4
-                      ? const Color(0xFF5CBDD9).withOpacity(0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.settings),
-              ),
-              label: 'Cài đặt',
-            ),
+            _buildNavItem(Icons.pie_chart, 'Thống kê', 3),
+            _buildNavItem(Icons.settings, 'Cài đặt', 4),
           ],
         ),
       ),
     );
   }
 
+  BottomNavigationBarItem _buildNavItem(
+    IconData icon,
+    String label,
+    int index,
+  ) {
+    return BottomNavigationBarItem(
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _currentIndex == index
+              ? const Color(0xFF5CBDD9).withOpacity(0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon),
+      ),
+      label: label,
+    );
+  }
+
   void _showProfileMenu(User? user) {
+    if (user == null) return;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -612,75 +586,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            CircleAvatar(
-              radius: 40,
-              backgroundColor: const Color(0xFF5CBDD9),
-              backgroundImage:
-                  user?.profileImageUrl != null &&
-                      user!.profileImageUrl!.isNotEmpty
-                  ? NetworkImage(user.profileImageUrl!)
-                        as ImageProvider<Object>?
-                  : null,
-              child:
-                  user?.profileImageUrl == null ||
-                      user!.profileImageUrl!.isEmpty
-                  ? const Icon(Icons.person, size: 40, color: Colors.white)
-                  : null,
-            ),
-            const SizedBox(height: 15),
-            Text(
-              user?.name ?? 'Người dùng',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              user?.email ?? 'user@example.com',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 30),
-            ListTile(
-              leading: const Icon(
-                Icons.person_outline,
-                color: Color(0xFF5CBDD9),
-              ),
-              title: const Text('Thông tin cá nhân'),
-              onTap: () async {
-                Navigator.pop(context); // Đóng bottom sheet
-                // Điều hướng đến ProfileScreen
-                final updatedUser = await Navigator.pushNamed(
-                  context,
-                  '/profile',
-                  arguments: user, // Truyền đối tượng User
-                );
-                // Nếu ProfileScreen trả về User đã cập nhật, cập nhật lại trong HomeController
-                if (updatedUser != null && updatedUser is User) {
-                  Provider.of<HomeController>(
-                    context,
-                    listen: false,
-                  ).updateCurrentUser(updatedUser);
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.settings_outlined,
-                color: Color(0xFF5CBDD9),
-              ),
-              title: const Text('Cài đặt'),
-              onTap: () {
-                Navigator.pop(context); // Đóng bottom sheet
-                // Chuyển sang tab Cài đặt
-                _pageController.jumpToPage(4); // Index 4 là Cài đặt
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.help_outline, color: Color(0xFF5CBDD9)),
-              title: const Text('Trợ giúp & Hỗ trợ'),
-              onTap: () {
-                Navigator.pop(context);
-                _showSnackBar('Tính năng trợ giúp sẽ sớm ra mắt');
-              },
-            ),
-            const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text(
@@ -713,11 +618,10 @@ class _HomeScreenState extends State<HomeScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Gọi signOut từ AuthController
               Provider.of<AuthController>(context, listen: false).signOut();
               Navigator.pushNamedAndRemoveUntil(
                 context,
-                '/signin', // Quay lại màn hình đăng nhập
+                '/signin',
                 (route) => false,
               );
             },
@@ -727,119 +631,170 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
 
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.black87,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
+class LineChart extends StatelessWidget {
+  final Map<int, double> incomeData;
+  final Map<int, double> expenseData;
+
+  const LineChart({
+    super.key,
+    required this.incomeData,
+    required this.expenseData,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _ChartPainter(incomeData, expenseData),
+      size: const Size(double.infinity, 120),
     );
   }
 }
 
-class ChartPainter extends CustomPainter {
+class _ChartPainter extends CustomPainter {
+  final Map<int, double> incomeData;
+  final Map<int, double> expenseData;
+  final Paint _gridPaint;
+
+  _ChartPainter(this.incomeData, this.expenseData)
+    : _gridPaint = Paint()
+        ..color = Colors.white.withOpacity(0.2)
+        ..strokeWidth = 0.5;
+
   @override
   void paint(Canvas canvas, Size size) {
+    final double maxVal = _getMaxValue();
+    const double minVal = 0;
+
+    // Draw horizontal grid lines and labels
+    final yLabels = _generateYLabels(maxVal);
+    for (int i = 0; i < yLabels.length; i++) {
+      final y = size.height - (i / (yLabels.length - 1)) * size.height;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), _gridPaint);
+      _drawText(canvas, yLabels[i], Offset(-35, y - 8));
+    }
+
+    _drawXAxisLabels(canvas, size);
+
+    // Draw lines for income and expense
+    _drawLine(canvas, size, incomeData, maxVal, minVal, Colors.greenAccent);
+    _drawLine(canvas, size, expenseData, maxVal, minVal, Colors.pinkAccent);
+  }
+
+  void _drawLine(
+    Canvas canvas,
+    Size size,
+    Map<int, double> data,
+    double maxVal,
+    double minVal,
+    Color color,
+  ) {
+    if (data.isEmpty || data.values.every((v) => v == 0)) return;
+
     final paint = Paint()
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
+      ..color = color
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    final expensePoints = [
-      Offset(0, size.height * 0.7),
-      Offset(size.width * 0.15, size.height * 0.5),
-      Offset(size.width * 0.3, size.height * 0.6),
-      Offset(size.width * 0.45, size.height * 0.3),
-      Offset(size.width * 0.6, size.height * 0.4),
-      Offset(size.width * 0.75, size.height * 0.25),
-      Offset(size.width, size.height * 0.2),
-    ];
+    final path = Path();
+    final List<int> sortedMonths = data.keys.where((k) => data[k]! > 0).toList()
+      ..sort();
+    if (sortedMonths.isEmpty) return;
 
-    final incomePoints = [
-      Offset(0, size.height * 0.8),
-      Offset(size.width * 0.15, size.height * 0.6),
-      Offset(size.width * 0.3, size.height * 0.7),
-      Offset(size.width * 0.45, size.height * 0.4),
-      Offset(size.width * 0.6, size.height * 0.5),
-      Offset(size.width * 0.75, size.height * 0.35),
-      Offset(size.width, size.height * 0.3),
-    ];
+    for (int i = 0; i < sortedMonths.length; i++) {
+      final month = sortedMonths[i];
+      final value = data[month] ?? 0;
 
-    paint.color = Colors.pink;
-    final expensePath = Path();
-    expensePath.moveTo(expensePoints[0].dx, expensePoints[0].dy);
-    for (int i = 1; i < expensePoints.length; i++) {
-      final cp1x = (expensePoints[i - 1].dx + expensePoints[i].dx) / 2;
-      final cp1y = expensePoints[i - 1].dy;
-      final cp2x = (expensePoints[i - 1].dx + expensePoints[i].dx) / 2;
-      final cp2y = expensePoints[i].dy;
+      final x = (month - 1) / 11 * size.width;
+      final y =
+          size.height - ((value - minVal) / (maxVal - minVal)) * size.height;
+      final point = Offset(x, y.isNaN ? size.height : y);
 
-      expensePath.cubicTo(
-        cp1x,
-        cp1y,
-        cp2x,
-        cp2y,
-        expensePoints[i].dx,
-        expensePoints[i].dy,
-      );
-    }
-    canvas.drawPath(expensePath, paint);
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        final prevMonth = sortedMonths[i - 1];
+        final prevValue = data[prevMonth] ?? 0;
+        final prevX = (prevMonth - 1) / 11 * size.width;
+        final prevY =
+            size.height -
+            ((prevValue - minVal) / (maxVal - minVal)) * size.height;
+        final prevPoint = Offset(prevX, prevY.isNaN ? size.height : prevY);
 
-    paint.color = Colors.green;
-    final incomePath = Path();
-    incomePath.moveTo(incomePoints[0].dx, incomePoints[0].dy);
-    for (int i = 1; i < incomePoints.length; i++) {
-      final cp1x = (incomePoints[i - 1].dx + incomePoints[i].dx) / 2;
-      final cp1y = incomePoints[i - 1].dy;
-      final cp2x = (incomePoints[i - 1].dx + incomePoints[i].dx) / 2;
-      final cp2y = incomePoints[i].dy;
+        final controlPoint1 = Offset(
+          prevPoint.dx + (point.dx - prevPoint.dx) / 2,
+          prevPoint.dy,
+        );
+        final controlPoint2 = Offset(
+          prevPoint.dx + (point.dx - prevPoint.dx) / 2,
+          point.dy,
+        );
 
-      incomePath.cubicTo(
-        cp1x,
-        cp1y,
-        cp2x,
-        cp2y,
-        incomePoints[i].dx,
-        incomePoints[i].dy,
-      );
-    }
-    canvas.drawPath(incomePath, paint);
-
-    paint.style = PaintingStyle.fill;
-
-    paint.color = Colors.pink;
-    for (final point in expensePoints) {
-      canvas.drawCircle(point, 4, paint);
-      paint.color = Colors.white;
-      canvas.drawCircle(
-        point,
-        4,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-      paint.color = Colors.pink;
+        path.cubicTo(
+          controlPoint1.dx,
+          controlPoint1.dy,
+          controlPoint2.dx,
+          controlPoint2.dy,
+          point.dx,
+          point.dy,
+        );
+      }
     }
 
-    paint.color = Colors.green;
-    for (final point in incomePoints) {
-      canvas.drawCircle(point, 4, paint);
-      paint.color = Colors.white;
-      canvas.drawCircle(
-        point,
-        4,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-      paint.color = Colors.green;
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawXAxisLabels(Canvas canvas, Size size) {
+    for (int i = 1; i <= 6; i++) {
+      final month = i * 2;
+      final x = (month - 2) / 11 * size.width; // Adjusted for better centering
+      _drawText(canvas, 'Tháng ${month}', Offset(x, size.height + 5));
     }
   }
 
+  double _getMaxValue() {
+    double maxVal = 0;
+    incomeData.values.forEach((val) => maxVal = max(maxVal, val));
+    expenseData.values.forEach((val) => maxVal = max(maxVal, val));
+    return maxVal == 0 ? 1000000 : maxVal * 1.2;
+  }
+
+  List<String> _generateYLabels(double maxVal) {
+    if (maxVal <= 1) return ['0', '1'];
+
+    final List<String> labels = [];
+    final double step = maxVal / 4;
+    for (int i = 0; i < 5; i++) {
+      final value = i * step;
+      if (value >= 1000000) {
+        labels.add('${(value / 1000000).toStringAsFixed(0)}M');
+      } else if (value >= 1000) {
+        labels.add('${(value / 1000).toStringAsFixed(0)}K');
+      } else {
+        labels.add(value.toStringAsFixed(0));
+      }
+    }
+    return labels.reversed.toList();
+  }
+
+  void _drawText(Canvas canvas, String text, Offset offset) {
+    final textSpan = TextSpan(
+      text: text,
+      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10),
+    );
+    final textPainter = TextPainter(
+      text: textSpan,
+      textAlign: TextAlign.center,
+      textDirection: ui.TextDirection.ltr,
+    );
+    textPainter.layout(minWidth: 0, maxWidth: 40);
+    textPainter.paint(canvas, offset);
+  }
+
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) {
-    return false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
   }
 }

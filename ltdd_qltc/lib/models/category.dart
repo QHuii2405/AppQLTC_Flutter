@@ -3,8 +3,8 @@ class Category {
   int userId;
   String name;
   String type; // 'income' or 'expense'
-  String? icon; // Tên icon hoặc path
-  String createdAt; // Thêm trường này
+  String? icon;
+  String createdAt;
 
   Category({
     this.id,
@@ -12,7 +12,7 @@ class Category {
     required this.name,
     required this.type,
     this.icon,
-    required this.createdAt, // Thêm vào constructor
+    required this.createdAt,
   });
 
   factory Category.fromMap(Map<String, dynamic> map) {
@@ -22,7 +22,7 @@ class Category {
       name: map['name'],
       type: map['type'],
       icon: map['icon'],
-      createdAt: map['created_at'], // Thêm vào fromMap
+      createdAt: map['created_at'],
     );
   }
 
@@ -33,11 +33,10 @@ class Category {
       'name': name,
       'type': type,
       'icon': icon,
-      'created_at': createdAt, // Thêm vào toMap
+      'created_at': createdAt,
     };
   }
 
-  // MỚI: Phương thức toMapWithoutId
   Map<String, dynamic> toMapWithoutId() {
     return {
       'user_id': userId,
@@ -46,5 +45,25 @@ class Category {
       'icon': icon,
       'created_at': createdAt,
     };
+  }
+}
+
+extension CategoryCopyWith on Category {
+  Category copyWith({
+    int? id,
+    int? userId,
+    String? name,
+    String? type,
+    String? icon,
+    String? createdAt,
+  }) {
+    return Category(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      icon: icon ?? this.icon,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 }

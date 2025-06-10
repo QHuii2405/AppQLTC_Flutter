@@ -30,12 +30,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_localizations:
-    sdk: flutter  
   sqflite: ^2.3.0
   path: ^1.8.3
-  intl: ^0.20.2 # Thêm dòng này nếu chưa có
-  provider: ^6.0.5 # Thêm dòng này nếu chưa có
+
+  # Quản lý trạng thái (State Management)
+  provider: ^6.1.1
+
+  # Định dạng ngày, giờ, số, tiền tệ
+  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8

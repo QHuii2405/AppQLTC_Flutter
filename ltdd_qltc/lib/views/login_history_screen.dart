@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:ltdd_qltc/models/user.dart'; // Import User model
+import 'package:ltdd_qltc/models/user.dart';
 
 class LoginHistoryScreen extends StatelessWidget {
-  final User user; // Nhận đối tượng User
+  final User user;
   const LoginHistoryScreen({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Lịch sử Đăng nhập',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+        title: const Text('Lịch sử Đăng nhập'),
         backgroundColor: const Color(0xFF5CBDD9),
-        foregroundColor: Colors.white,
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -38,7 +33,7 @@ class LoginHistoryScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Tính năng hiển thị chi tiết lịch sử đăng nhập sẽ sớm ra mắt.',
+                'Tính năng đang được phát triển và sẽ sớm ra mắt.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.white70),
               ),

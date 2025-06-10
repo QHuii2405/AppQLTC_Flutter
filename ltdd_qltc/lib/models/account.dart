@@ -4,7 +4,7 @@ class Account {
   String name;
   double balance;
   String currency;
-  String createdAt; // Thêm trường này
+  String createdAt;
 
   Account({
     this.id,
@@ -12,7 +12,7 @@ class Account {
     required this.name,
     required this.balance,
     required this.currency,
-    required this.createdAt, // Thêm vào constructor
+    required this.createdAt,
   });
 
   factory Account.fromMap(Map<String, dynamic> map) {
@@ -20,9 +20,10 @@ class Account {
       id: map['id'],
       userId: map['user_id'],
       name: map['name'],
-      balance: map['balance'],
+      // SỬA LỖI: Chuyển đổi tường minh sang double
+      balance: (map['balance'] as num).toDouble(),
       currency: map['currency'],
-      createdAt: map['created_at'], // Thêm vào fromMap
+      createdAt: map['created_at'],
     );
   }
 
@@ -33,11 +34,10 @@ class Account {
       'name': name,
       'balance': balance,
       'currency': currency,
-      'created_at': createdAt, // Thêm vào toMap
+      'created_at': createdAt,
     };
   }
 
-  // MỚI: Phương thức toMapWithoutId
   Map<String, dynamic> toMapWithoutId() {
     return {
       'user_id': userId,
@@ -49,7 +49,6 @@ class Account {
   }
 }
 
-// Extension AccountCopyWith vẫn giữ nguyên
 extension AccountCopyWith on Account {
   Account copyWith({
     int? id,
